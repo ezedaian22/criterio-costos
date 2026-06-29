@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criterio Costos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;gap:0}
+.nav-brand{font-weight:800;font-size:16px;margin-right:20px;white-space:nowrap}.nav-brand span{color:var(--azul)}
+.nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap}
+.nav-tab:hover{color:var(--text1)}.nav-tab.active{color:var(--azul);border-bottom-color:var(--azul)}
+.page{max-width:1100px;margin:0 auto;padding:24px 16px}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.page-title{font-size:22px;font-weight:800}.page-sub{font-size:14px;color:var(--text2);margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s}
+.btn-primary{background:var(--azul);color:white}.btn-primary:hover{background:#1d4ed8}
+.btn-outline{background:transparent;color:var(--text1);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
+.btn-sm{padding:5px 12px;font-size:13px}
+.btn-icon{padding:6px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:15px;color:var(--text2)}.btn-icon:hover{background:var(--surface2)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.form-input,.form-select{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text1);outline:none;transition:border 0.15s}
+.form-input:focus,.form-select:focus{border-color:var(--azul)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:580px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:17px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text2);cursor:pointer;line-height:1}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--surface)}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:14px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.precio-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.precio-item:last-child{border-bottom:none}
+.precio-costo{color:var(--text1);font-weight:700}
+.precio-greguera{color:var(--azul);font-weight:700}
+.precio-balbi{color:var(--verde);font-weight:700}
+.precio-sucati{color:var(--amarillo);font-weight:700}
+.sep{height:1px;background:var(--border);margin:16px 0}
+.empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:18px;font-weight:700;color:var(--text1);margin-bottom:6px}
+.loading{text-align:center;padding:40px;color:var(--text2)}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.tag-azul{background:var(--azul-bg);color:var(--azul)}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}.nav-tab{padding:0 10px;font-size:12px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>window.SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwdGZncWR5Ymp1aHNlaHlodXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNDM4OTEsImV4cCI6MjA5MzgxOTg5MX0.Pek-PptrKcUYh6jCKocnhqO4umbUx5LWtgwrE4WzjF4'</script>
+<script type="text/babel">
+const{createClient}=supabase
+const sb=createClient('https://dptfgqdybjuhsehyhuyy.supabase.co',window.SUPABASE_ANON_KEY)
+const{useState,useEffect}=React
+const fmt=v=>v!=null?'$'+Math.round(v).toLocaleString('es-AR'):'—'
+
+async function getTemporadas(){const{data}=await sb.schema('costos').from('temporadas').select('*');return data||[]}
+async function getConfig(id){const{data}=await sb.schema('costos').from('config').select('*').eq('temporada_id',id).limit(1);return data?.[0]||null}
+async function getPrecios(tabla,id){const{data}=await sb.schema('costos').from(tabla).select('*').eq('temporada_id',id);return data||[]}
+async function getArticulos(id){const{data}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',id);return(data||[]).sort((a,b)=>a.codigo.localeCompare(b.codigo))}
+async function getArticuloDetalle(id){
+  const[{data:telas},{data:avios},{data:percha}]=await Promise.all([
+    sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').eq('articulo_id',id),
+    sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').eq('articulo_id',id),
+    sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').eq('articulo_id',id),
+  ])
+  return{telas:telas||[],avios:avios||[],percha:percha||[]}
+}
+function calcPrecios(det,confeccion,config){
+  const t=(det.telas||[]).reduce((s,t)=>s+(t.cantidad*(t.precios_tela?.precio||0)),0)
+  const a=(det.avios||[]).reduce((s,a)=>s+(a.cantidad*(a.precios_avios?.precio||0)),0)
+  const p=(det.percha||[]).reduce((s,p)=>s+(p.cantidad*(p.precios_perchas?.precio||0)),0)
+  const corte=config?.precio_corte||0
+  const costo=t+a+p+corte+(confeccion||0)
+  const gr=(config?.margen_greguera||100)/100
+  const ba=(config?.margen_balbi||50)/100
+  const su=(config?.descuento_sucati||15)/100
+  return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),totalTela:t,totalAvios:a,totalPercha:p,corte}
+}
+
+function App(){
+  const[tab,setTab]=useState('articulos')
+  const[temporadas,setTemporadas]=useState([])
+  const[temporada,setTemporada]=useState(null)
+  const[config,setConfig]=useState(null)
+  const[loading,setLoading]=useState(true)
+
+  useEffect(()=>{
+    getTemporadas().then(ts=>{
+      setTemporadas(ts)
+      const a=ts.find(t=>t.activa)||ts[0]
+      if(a){setTemporada(a);getConfig(a.id).then(setConfig)}
+      setLoading(false)
+    })
+  },[])
+
+  async function cambiarTemporada(id){
+    const t=temporadas.find(x=>x.id===id)
+    setTemporada(t)
+    setConfig(await getConfig(id))
+  }
+
+  if(loading)return React.createElement('div',{className:'loading'},'⏳ Cargando...')
+
+  const tabs=['articulos','telas','avios','perchas','config']
+  const tabLabel={articulos:'📦 Artículos',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',config:'⚙️ Config'}
+
+  return(
+    <div>
+      <nav className="nav">
+        <div className="nav-brand">Criterio <span>Costos</span></div>
+        {tabs.map(t=>(
+          <div key={t} className={} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
+        ))}
+        <div style={{marginLeft:'auto'}}>
+          <select value={temporada?.id||''} onChange={e=>cambiarTemporada(e.target.value)}
+            style={{padding:'4px 10px',border:'1.5px solid var(--border)',borderRadius:6,fontSize:13,background:'var(--surface)',fontWeight:600}}>
+            {temporadas.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+          </select>
+        </div>
+      </nav>
+      {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
+        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config}/>
+        :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
+        :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
+        :tab==='perchas'?<PreciosPage tipo="precios_perchas" titulo="Precios de Perchas" icono="🧲" temporada={temporada}/>
+        :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}}/>
+      }
+    </div>
+  )
+}
+
+function ArticulosPage({temporada,config}){
+  const[articulos,setArticulos]=useState([])
+  const[loading,setLoading]=useState(true)
+  const[busqueda,setBusqueda]=useState('')
+  const[modalNuevo,setModalNuevo]=useState(false)
+  const[seleccionado,setSeleccionado]=useState(null)
+
+  useEffect(()=>{cargar()},[temporada.id])
+
+  async function cargar(){
+    setLoading(true)
+    const arts=await getArticulos(temporada.id)
+    const con=await Promise.all(arts.map(async a=>{
+      const det=await getArticuloDetalle(a.id)
+      return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
+    }))
+    setArticulos(con)
+    setLoading(false)
+  }
+
+  const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
+
+  if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
+
+  return(
+    <div className="page">
+      <div className="page-header">
+        <div><div className="page-title">Artículos</div><div className="page-sub">{temporada.nombre} · {articulos.length} artículos</div></div>
+        <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Nuevo artículo</button>
+      </div>
+      <input className="form-input" placeholder="🔍 Buscar por código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
+      {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
+        <div className="empty">
+          <div className="empty-icon">📦</div>
+          <div className="empty-title">{busqueda?'Sin resultados':'Sin artículos todavía'}</div>
+          {!busqueda&&<button className="btn btn-primary" style={{marginTop:16}} onClick={()=>setModalNuevo(true)}>+ Crear primer artículo</button>}
+        </div>
+      ):(
+        <div className="card" style={{overflow:'hidden'}}>
+          <table>
+            <thead><tr>
+              <th>Artículo</th>
+              <th style={{textAlign:'right'}}>Costo</th>
+              <th style={{textAlign:'right'}}>G. Reguera</th>
+              <th style={{textAlign:'right'}}>Balbi</th>
+              <th style={{textAlign:'right'}}>Sucati</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              {filtrados.map(a=>(
+                <tr key={a.id} style={{cursor:'pointer'}} onClick={()=>setSeleccionado(a)}>
+                  <td>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      {a.foto_url
+                        ?<img src={a.foto_url} alt="" style={{width:40,height:40,borderRadius:6,objectFit:'cover'}}/>
+                        :<div style={{width:40,height:40,borderRadius:6,background:'var(--surface2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>👕</div>
+                      }
+                      <div>
+                        <div style={{fontWeight:700}}>{a.codigo}</div>
+                        <div style={{fontSize:12,color:'var(--text2)'}}>{a.descripcion}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{textAlign:'right'}}><span className="precio-costo">{fmt(a.precios?.costo)}</span></td>
+                  <td style={{textAlign:'right'}}><span className="precio-greguera">{fmt(a.precios?.greguera)}</span></td>
+                  <td style={{textAlign:'right'}}><span className="precio-balbi">{fmt(a.precios?.balbi)}</span></td>
+                  <td style={{textAlign:'right'}}><span className="precio-sucati">{fmt(a.precios?.sucati)}</span></td>
+                  <td><span style={{color:'var(--azul)',fontSize:18}}>›</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modalNuevo&&<ModalNuevoArt temporada={temporada} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar()}}/>}
+    </div>
+  )
+}
+
+function ArticuloDetalle({art,temporada,config,onBack}){
+  const[det,setDet]=useState({telas:[],avios:[],percha:[]})
+  const[conf,setConf]=useState(art.confeccion||0)
+  const[precios,setPrecios]=useState(art.precios||{})
+  const[loading,setLoading]=useState(true)
+  const[editConf,setEditConf]=useState(false)
+  const[confInput,setConfInput]=useState(String(art.confeccion||0))
+  const[mTela,setMTela]=useState(false)
+  const[mAvio,setMAvio]=useState(false)
+  const[mPercha,setMPercha]=useState(false)
+
+  useEffect(()=>{cargar()},[art.id])
+  useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
+
+  async function cargar(){
+    setLoading(true)
+    const d=await getArticuloDetalle(art.id)
+    setDet(d)
+    setLoading(false)
+  }
+  async function guardarConf(){
+    const v=Number(confInput)||0
+    await sb.schema('costos').from('articulos').update({confeccion:v}).eq('id',art.id)
+    setConf(v);setEditConf(false)
+  }
+  async function delTela(id){await sb.schema('costos').from('articulo_telas').delete().eq('id',id);cargar()}
+  async function delAvio(id){await sb.schema('costos').from('articulo_avios').delete().eq('id',id);cargar()}
+  async function delPercha(id){await sb.schema('costos').from('articulo_percha').delete().eq('id',id);cargar()}
+
+  return(
+    <div className="page">
+      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',marginBottom:16,fontSize:14}}>← Volver</button>
+      <div style={{display:'flex',gap:20,marginBottom:24,flexWrap:'wrap',alignItems:'flex-start'}}>
+        <FotoUp artId={art.id} url={art.foto_url} onSave={cargar}/>
+        <div style={{flex:1}}>
+          <div style={{fontSize:26,fontWeight:800}}>{art.codigo}</div>
+          <div style={{fontSize:16,color:'var(--text2)',marginBottom:8}}>{art.descripcion}</div>
+          <span className="tag tag-azul">{temporada.nombre}</span>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:10,marginBottom:20}}>
+        {[
+          {l:'Costo',v:precios.costo,c:'precio-costo'},
+          {l:'G. Reguera',v:precios.greguera,c:'precio-greguera'},
+          {l:'Balbi',v:precios.balbi,c:'precio-balbi'},
+          {l:'Sucati',v:precios.sucati,c:'precio-sucati'},
+        ].map(p=>(
+          <div key={p.l} className="card" style={{padding:'12px 14px'}}>
+            <div style={{fontSize:11,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:4}}>{p.l}</div>
+            <div className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading?<div className="loading">⏳ Cargando...</div>:(
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+
+          <div className="card">
+            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <b>🧵 Telas</b><button className="btn btn-sm btn-outline" onClick={()=>setMTela(true)}>+ Agregar</button>
+            </div>
+            {det.telas.length===0?<div style={{padding:20,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin telas</div>
+              :det.telas.map(t=>(
+              <div key={t.id} className="precio-item">
+                <div><div style={{fontWeight:600}}>{t.precios_tela?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <b>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
+                  <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
+                </div>
+              </div>
+            ))}
+            <div style={{padding:'8px 14px',background:'var(--surface2)',fontSize:13,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
+              <span>Total telas</span><span>{fmt(precios.totalTela)}</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <b>🪡 Avíos</b><button className="btn btn-sm btn-outline" onClick={()=>setMAvio(true)}>+ Agregar</button>
+            </div>
+            {det.avios.length===0?<div style={{padding:20,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin avíos</div>
+              :det.avios.map(a=>(
+              <div key={a.id} className="precio-item">
+                <div><div style={{fontWeight:600}}>{a.precios_avios?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <b>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
+                  <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
+                </div>
+              </div>
+            ))}
+            <div style={{padding:'8px 14px',background:'var(--surface2)',fontSize:13,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
+              <span>Total avíos</span><span>{fmt(precios.totalAvios)}</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',fontWeight:700}}>✂️ Producción</div>
+            <div className="precio-item">
+              <span style={{fontWeight:600}}>Corte</span>
+              <b>{fmt(config?.precio_corte||0)}</b>
+            </div>
+            <div className="precio-item">
+              <div><div style={{fontWeight:600}}>Confección</div><div style={{fontSize:11,color:'var(--text3)'}}>manual por artículo</div></div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {editConf?(
+                  <>
+                    <input type="number" value={confInput} onChange={e=>setConfInput(e.target.value)}
+                      style={{width:90,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:14,fontWeight:700}} autoFocus/>
+                    <button className="btn btn-sm btn-primary" onClick={guardarConf}>✓</button>
+                    <button className="btn btn-sm btn-outline" onClick={()=>setEditConf(false)}>✕</button>
+                  </>
+                ):(
+                  <><b>{fmt(conf)}</b><button className="btn-icon" onClick={()=>{setConfInput(String(conf));setEditConf(true)}}>✏️</button></>
+                )}
+              </div>
+            </div>
+            <div style={{padding:'8px 14px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <b>🧲 Percha</b><button className="btn btn-sm btn-outline" onClick={()=>setMPercha(true)}>{det.percha.length?'Cambiar':'+ Agregar'}</button>
+            </div>
+            {det.percha.map(p=>(
+              <div key={p.id} className="precio-item" style={{paddingLeft:24}}>
+                <div><div style={{fontWeight:600}}>{p.precios_perchas?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{p.cantidad} × {fmt(p.precios_perchas?.precio)}</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <b>{fmt(p.cantidad*(p.precios_perchas?.precio||0))}</b>
+                  <button className="btn-icon" onClick={()=>delPercha(p.id)}>🗑</button>
+                </div>
+              </div>
+            ))}
+            <div style={{padding:'10px 14px',background:'var(--surface2)',fontWeight:800,display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)'}}>
+              <span>COSTO TOTAL</span><span style={{fontSize:17}}>{fmt(precios.costo)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {mTela&&<ModalAdd tipo="tela" artId={art.id} tempId={temporada.id} onClose={()=>setMTela(false)} onSave={()=>{setMTela(false);cargar()}}/>}
+      {mAvio&&<ModalAdd tipo="avio" artId={art.id} tempId={temporada.id} onClose={()=>setMAvio(false)} onSave={()=>{setMAvio(false);cargar()}}/>}
+      {mPercha&&<ModalAdd tipo="percha" artId={art.id} tempId={temporada.id} onClose={()=>setMPercha(false)} onSave={()=>{setMPercha(false);cargar()}}/>}
+    </div>
+  )
+}
+
+function FotoUp({artId,url,onSave}){
+  const[subiendo,setSubiendo]=useState(false)
+  const[u,setU]=useState(url)
+  async function subir(e){
+    const f=e.target.files[0];if(!f)return
+    setSubiendo(true)
+    const ext=f.name.split('.').pop()
+    const path=
+    const{error}=await sb.storage.from('fotos-costos').upload(path,f,{upsert:true})
+    if(!error){
+      const{data}=sb.storage.from('fotos-costos').getPublicUrl(path)
+      await sb.schema('costos').from('articulos').update({foto_url:data.publicUrl}).eq('id',artId)
+      setU(data.publicUrl);onSave()
+    }
+    setSubiendo(false)
+  }
+  return(
+    <label style={{cursor:'pointer'}}>
+      <input type="file" accept="image/*" onChange={subir} style={{display:'none'}}/>
+      {u?<img src={u} alt="" style={{width:90,height:90,borderRadius:10,objectFit:'cover',border:'2px solid var(--border)'}}/>
+        :<div style={{width:90,height:90,borderRadius:10,background:'var(--surface2)',border:'2px dashed var(--border)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4}}>
+          <span style={{fontSize:28}}>📷</span><span style={{fontSize:10,color:'var(--text3)'}}>Agregar foto</span>
+        </div>
+      }
+      {subiendo&&<div style={{fontSize:11,color:'var(--text3)',textAlign:'center',marginTop:4}}>Subiendo...</div>}
+    </label>
+  )
+}
+
+function ModalAdd({tipo,artId,tempId,onClose,onSave}){
+  const[items,setItems]=useState([])
+  const[selId,setSelId]=useState('')
+  const[cantidad,setCantidad]=useState(tipo==='percha'?'1':tipo==='avio'?'1':'')
+  const[loading,setLoading]=useState(false)
+  const tablaMap={tela:'precios_tela',avio:'precios_avios',percha:'precios_perchas'}
+  const insMap={tela:'articulo_telas',avio:'articulo_avios',percha:'articulo_percha'}
+  const fkMap={tela:'precio_tela_id',avio:'precio_avio_id',percha:'precio_percha_id'}
+  const tabla=tablaMap[tipo],ins=insMap[tipo],fk=fkMap[tipo]
+  const titulo={tela:'Agregar tela',avio:'Agregar avío',percha:'Agregar percha'}[tipo]
+  useEffect(()=>{getPrecios(tabla,tempId).then(d=>setItems(d.sort((a,b)=>a.nombre.localeCompare(b.nombre))))},[])
+  async function guardar(){
+    if(!selId)return
+    setLoading(true)
+    await sb.schema('costos').from(ins).insert({articulo_id:artId,[fk]:selId,cantidad:Number(cantidad)||1})
+    setLoading(false);onSave()
+  }
+  const sel=items.find(i=>i.id===selId)
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><div className="modal-title">{titulo}</div><button className="modal-close" onClick={onClose}>×</button></div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">{tipo==='tela'?'Tipo de tela':tipo==='avio'?'Avío':'Percha'}</label>
+            <select className="form-select" value={selId} onChange={e=>setSelId(e.target.value)}>
+              <option value="">Seleccioná...</option>
+              {items.map(i=><option key={i.id} value={i.id}>{i.nombre}{i.precio?' — '+fmt(i.precio):''}{i.unidad?' /'+i.unidad:''}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Cantidad{tipo==='tela'&&sel?' ('+sel.unidad+')':''}</label>
+            <input type="number" className="form-input" value={cantidad} onChange={e=>setCantidad(e.target.value)} step="0.01" min="0.01"/>
+          </div>
+          {sel&&cantidad&&<div style={{padding:'10px 14px',background:'var(--azul-bg)',borderRadius:8,fontSize:14,fontWeight:600}}>
+            Total: {fmt(Number(cantidad)*(sel.precio||0))}
+          </div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!selId}>
+            {loading?'Guardando...':'✅ Agregar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModalNuevoArt({temporada,onClose,onSave}){
+  const[codigo,setCodigo]=useState('')
+  const[desc,setDesc]=useState('')
+  const[conf,setConf]=useState('')
+  const[loading,setLoading]=useState(false)
+  async function guardar(){
+    if(!codigo)return
+    setLoading(true)
+    await sb.schema('costos').from('articulos').insert({temporada_id:temporada.id,codigo,descripcion:desc,confeccion:Number(conf)||0})
+    setLoading(false);onSave()
+  }
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><div className="modal-title">Nuevo artículo</div><button className="modal-close" onClick={onClose}>×</button></div>
+        <div className="modal-body">
+          <div className="form-group"><label className="form-label">Código *</label><input className="form-input" placeholder="Ej: 2312" value={codigo} onChange={e=>setCodigo(e.target.value)} autoFocus/></div>
+          <div className="form-group"><label className="form-label">Descripción</label><input className="form-input" placeholder="Ej: chaleco polar con tapa cierre" value={desc} onChange={e=>setDesc(e.target.value)}/></div>
+          <div className="form-group"><label className="form-label">Confección ($)</label><input type="number" className="form-input" placeholder="0" value={conf} onChange={e=>setConf(e.target.value)}/></div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!codigo}>{loading?'Guardando...':'✅ Crear artículo'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PreciosPage({tipo,titulo,icono,temporada}){
+  const[items,setItems]=useState([])
+  const[loading,setLoading]=useState(true)
+  const[editando,setEditando]=useState(null)
+  const[modalNuevo,setModalNuevo]=useState(false)
+  useEffect(()=>{cargar()},[temporada.id,tipo])
+  async function cargar(){setLoading(true);const d=await getPrecios(tipo,temporada.id);setItems(d.sort((a,b)=>a.nombre.localeCompare(b.nombre)));setLoading(false)}
+  async function guardarEdit(item,precio){await sb.schema('costos').from(tipo).update({precio:Number(precio)}).eq('id',item.id);setEditando(null);cargar()}
+  async function del(id){if(!confirm('¿Eliminar?'))return;await sb.schema('costos').from(tipo).delete().eq('id',id);cargar()}
+  return(
+    <div className="page">
+      <div className="page-header">
+        <div><div className="page-title">{icono} {titulo}</div><div className="page-sub">{temporada.nombre} · {items.length} ítems</div></div>
+        <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Agregar</button>
+      </div>
+      {loading?<div className="loading">⏳ Cargando...</div>:items.length===0?(
+        <div className="empty"><div className="empty-icon">{icono}</div><div className="empty-title">Sin ítems todavía</div></div>
+      ):(
+        <div className="card" style={{overflow:'hidden'}}>
+          {items.map(item=>(
+            <div key={item.id} className="precio-item">
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:14}}>{item.nombre}</div>
+                {item.unidad&&<div style={{fontSize:11,color:'var(--text3)'}}>por {item.unidad}</div>}
+              </div>
+              {editando?.id===item.id?(
+                <EditInline valor={item.precio} onSave={v=>guardarEdit(item,v)} onCancel={()=>setEditando(null)}/>
+              ):(
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <b style={{fontSize:15}}>{fmt(item.precio)}</b>
+                  <button className="btn-icon" onClick={()=>setEditando(item)}>✏️</button>
+                  <button className="btn-icon" onClick={()=>del(item.id)}>🗑</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {modalNuevo&&<ModalNuevoPrecio tipo={tipo} titulo={titulo} tempId={temporada.id} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar()}}/>}
+    </div>
+  )
+}
+
+function EditInline({valor,onSave,onCancel}){
+  const[v,setV]=useState(String(valor||''))
+  return(
+    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+      <input type="number" value={v} onChange={e=>setV(e.target.value)} style={{width:100,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:14,fontWeight:700}} autoFocus onKeyDown={e=>e.key==='Enter'&&onSave(v)}/>
+      <button className="btn btn-sm btn-primary" onClick={()=>onSave(v)}>✓</button>
+      <button className="btn btn-sm btn-outline" onClick={onCancel}>✕</button>
+    </div>
+  )
+}
+
+function ModalNuevoPrecio({tipo,titulo,tempId,onClose,onSave}){
+  const[nombre,setNombre]=useState('')
+  const[precio,setPrecio]=useState('')
+  const[unidad,setUnidad]=useState('kg')
+  const[loading,setLoading]=useState(false)
+  const esTela=tipo==='precios_tela'
+  async function guardar(){
+    if(!nombre)return
+    setLoading(true)
+    const d={temporada_id:tempId,nombre,precio:Number(precio)||0}
+    if(esTela)d.unidad=unidad
+    await sb.schema('costos').from(tipo).insert(d)
+    setLoading(false);onSave()
+  }
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><div className="modal-title">Agregar a {titulo}</div><button className="modal-close" onClick={onClose}>×</button></div>
+        <div className="modal-body">
+          <div className="form-group"><label className="form-label">Nombre</label><input className="form-input" placeholder="Ej: polar" value={nombre} onChange={e=>setNombre(e.target.value)} autoFocus/></div>
+          <div className={esTela?'form-row':''}>
+            <div className="form-group"><label className="form-label">Precio ($)</label><input type="number" className="form-input" placeholder="0" value={precio} onChange={e=>setPrecio(e.target.value)}/></div>
+            {esTela&&<div className="form-group"><label className="form-label">Unidad</label><select className="form-select" value={unidad} onChange={e=>setUnidad(e.target.value)}><option value="kg">kg</option><option value="m">m</option><option value="u">u</option></select></div>}
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!nombre}>{loading?'Guardando...':'✅ Agregar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
+  const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15})
+  const[guardando,setGuardando]=useState(false)
+  const[ok,setOk]=useState(false)
+  const[mTemp,setMTemp]=useState(false)
+  async function guardar(){
+    setGuardando(true)
+    if(config){const{data}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single();onSave(data)}
+    else{const{data}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single();onSave(data)}
+    setGuardando(false);setOk(true);setTimeout(()=>setOk(false),2000)
+  }
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}))
+  const ej=10000
+  const gr=ej*(1+form.margen_greguera/100)
+  const ba=ej*(1+form.margen_balbi/100)
+  const su=gr*(1-form.descuento_sucati/100)
+  return(
+    <div className="page">
+      <div className="page-header">
+        <div><div className="page-title">⚙️ Configuración</div><div className="page-sub">{temporada.nombre}</div></div>
+        <button className="btn btn-outline" onClick={()=>setMTemp(true)}>+ Nueva temporada</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
+        <div className="card" style={{padding:20}}>
+          <div style={{fontWeight:700,marginBottom:16}}>Parámetros globales</div>
+          <div className="form-group"><label className="form-label">Precio de corte ($)</label><input type="number" className="form-input" value={form.precio_corte} onChange={e=>set('precio_corte',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Se aplica a todos los artículos</div></div>
+          <div className="sep"/>
+          <div className="form-group"><label className="form-label">Margen G. Reguera (%)</label><input type="number" className="form-input" value={form.margen_greguera} onChange={e=>set('margen_greguera',Number(e.target.value))}/></div>
+          <div className="form-group"><label className="form-label">Margen Balbi (%)</label><input type="number" className="form-input" value={form.margen_balbi} onChange={e=>set('margen_balbi',Number(e.target.value))}/></div>
+          <div className="form-group"><label className="form-label">Descuento Sucati (%)</label><input type="number" className="form-input" value={form.descuento_sucati} onChange={e=>set('descuento_sucati',Number(e.target.value))}/></div>
+          <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardar} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':'Guardar configuración'}</button>
+        </div>
+        <div className="card" style={{padding:20}}>
+          <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>
+          {[{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
+            <div key={p.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+              <span style={{fontSize:14,color:'var(--text2)'}}>{p.l}</span>
+              <span className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {mTemp&&<ModalNuevaTemp onClose={()=>setMTemp(false)} onSave={async nombre=>{
+        await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
+        const ts=await getTemporadas();onTemporadas(ts);setMTemp(false)
+      }}/>}
+    </div>
+  )
+}
+
+function ModalNuevaTemp({onClose,onSave}){
+  const[nombre,setNombre]=useState('')
+  const[loading,setLoading]=useState(false)
+  async function guardar(){if(!nombre)return;setLoading(true);await onSave(nombre);setLoading(false)}
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><div className="modal-title">Nueva temporada</div><button className="modal-close" onClick={onClose}>×</button></div>
+        <div className="modal-body"><div className="form-group"><label className="form-label">Nombre</label><input className="form-input" placeholder="Ej: Verano 2027" value={nombre} onChange={e=>setNombre(e.target.value)} autoFocus/></div></div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!nombre}>{loading?'Creando...':'✅ Crear temporada'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+ReactDOM.render(React.createElement(App),document.getElementById('root'))
+</script>
+</body>
+</html>
