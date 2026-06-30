@@ -56,6 +56,14 @@ tr:hover td{background:var(--surface2)}
 .empty-title{font-size:18px;font-weight:700;color:var(--text1);margin-bottom:6px}
 .loading{text-align:center;padding:40px;color:var(--text2)}
 .detalle-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.caratula{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg);position:relative}
+.caratula-logo{font-size:38px;font-weight:800;margin-bottom:6px}
+.caratula-logo span{color:var(--azul)}
+.caratula-sub{font-size:15px;color:var(--text2);margin-bottom:28px}
+.caratula-estaciones{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.estacion-card{width:150px;height:150px;border-radius:16px;border:1.5px solid var(--border);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:40px;transition:all 0.15s;font-family:inherit}
+.estacion-card:hover{border-color:var(--azul);transform:translateY(-2px)}
+.estacion-card div{font-size:15px;font-weight:700;color:var(--text1)}
 .tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
 .tag-azul{background:var(--azul-bg);color:var(--azul)}
 @media(max-width:780px){.detalle-grid{grid-template-columns:1fr}}
@@ -97,29 +105,79 @@ function calcPrecios(det,confeccion,config){
   return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),precioVenta:round500(costo*(1+pv)),totalTela:t,totalAvios:a,totalPercha:p,corte}
 }
 
+function detectarEstacion(nombre){
+  const n=(nombre||'').toLowerCase()
+  if(n.includes('invierno'))return 'invierno'
+  if(n.includes('verano'))return 'verano'
+  return 'otra'
+}
+
 function App(){
+  const[pantalla,setPantalla]=useState('caratula') // caratula | temporadas | app
+  const[estacion,setEstacion]=useState(null)
   const[tab,setTab]=useState('articulos')
   const[temporadas,setTemporadas]=useState([])
   const[temporada,setTemporada]=useState(null)
   const[config,setConfig]=useState(null)
   const[loading,setLoading]=useState(true)
+  const[mTemp,setMTemp]=useState(false)
 
   useEffect(()=>{
-    getTemporadas().then(ts=>{
-      setTemporadas(ts)
-      const a=ts.find(t=>t.activa)||ts[0]
-      if(a){setTemporada(a);getConfig(a.id).then(setConfig)}
-      setLoading(false)
-    })
+    getTemporadas().then(ts=>{setTemporadas(ts);setLoading(false)})
   },[])
 
-  async function cambiarTemporada(id){
-    const t=temporadas.find(x=>x.id===id)
+  async function elegirTemporada(t){
     setTemporada(t)
-    setConfig(await getConfig(id))
+    setConfig(await getConfig(t.id))
+    setPantalla('app')
+  }
+
+  async function crearTemporada(nombre){
+    await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
+    const ts=await getTemporadas()
+    setTemporadas(ts)
+    setMTemp(false)
+    const nueva=ts.find(t=>t.nombre===nombre)
+    if(nueva)elegirTemporada(nueva)
   }
 
   if(loading)return React.createElement('div',{className:'loading'},'⏳ Cargando...')
+
+  if(pantalla==='caratula'){
+    return(
+      <div className="caratula">
+        <div className="caratula-logo">Criterio <span>Costos</span></div>
+        <div className="caratula-sub">Elegí la temporada</div>
+        <div className="caratula-estaciones">
+          <button className="estacion-card" onClick={()=>{setEstacion('invierno');setPantalla('temporadas')}}>
+            <span>❄️</span><div>Invierno</div>
+          </button>
+          <button className="estacion-card" onClick={()=>{setEstacion('verano');setPantalla('temporadas')}}>
+            <span>☀️</span><div>Verano</div>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if(pantalla==='temporadas'){
+    const lista=temporadas.filter(t=>detectarEstacion(t.nombre)===estacion)
+    return(
+      <div className="caratula">
+        <button onClick={()=>setPantalla('caratula')} style={{position:'absolute',top:18,left:18,display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',fontSize:14}}>← Volver</button>
+        <div className="caratula-logo" style={{fontSize:26,marginBottom:4}}>{estacion==='invierno'?'❄️ Invierno':'☀️ Verano'}</div>
+        <div className="caratula-sub">Elegí una temporada o creá una nueva</div>
+        <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%',maxWidth:360}}>
+          {lista.length===0&&<div style={{textAlign:'center',color:'var(--text2)',fontSize:14,marginBottom:6}}>Sin temporadas de {estacion} todavía</div>}
+          {lista.map(t=>(
+            <button key={t.id} className="btn btn-outline" style={{minHeight:48,fontSize:15}} onClick={()=>elegirTemporada(t)}>{t.nombre}</button>
+          ))}
+          <button className="btn btn-primary" style={{minHeight:48}} onClick={()=>setMTemp(true)}>+ Nueva temporada de {estacion==='invierno'?'Invierno':'Verano'}</button>
+        </div>
+        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
+      </div>
+    )
+  }
 
   const tabs=['articulos','telas','avios','perchas','config']
   const tabLabel={articulos:'📦 Artículos',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',config:'⚙️ Config'}
@@ -127,15 +185,12 @@ function App(){
   return(
     <div>
       <nav className="nav">
-        <div className="nav-brand">Criterio <span>Costos</span></div>
+        <div className="nav-brand" style={{cursor:'pointer'}} onClick={()=>setPantalla('caratula')}>Criterio <span>Costos</span></div>
         {tabs.map(t=>(
           <div key={t} className={`nav-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
         ))}
         <div style={{marginLeft:'auto'}}>
-          <select value={temporada?.id||''} onChange={e=>cambiarTemporada(e.target.value)}
-            style={{padding:'4px 10px',border:'1.5px solid var(--border)',borderRadius:6,fontSize:13,background:'var(--surface)',fontWeight:600}}>
-            {temporadas.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
-          </select>
+          <span className="tag tag-azul" style={{cursor:'pointer'}} onClick={()=>setPantalla('temporadas')}>{temporada?.nombre} ▾</span>
         </div>
       </nav>
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
@@ -246,6 +301,7 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   const[mTela,setMTela]=useState(false)
   const[mAvio,setMAvio]=useState(false)
   const[mPercha,setMPercha]=useState(false)
+  const[editandoCantidad,setEditandoCantidad]=useState(null)
 
   useEffect(()=>{cargar()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
@@ -271,6 +327,12 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     const v=descInput.trim()
     await sb.schema('costos').from('articulos').update({descripcion:v}).eq('id',art.id)
     setDescripcion(v);setEditDesc(false)
+  }
+  async function guardarCantidad(tabla,id,valor){
+    const v=Number(valor)||0
+    await sb.schema('costos').from(tabla).update({cantidad:v}).eq('id',id)
+    setEditandoCantidad(null)
+    cargar()
   }
   async function delTela(id){await sb.schema('costos').from('articulo_telas').delete().eq('id',id);cargar()}
   async function delAvio(id){await sb.schema('costos').from('articulo_avios').delete().eq('id',id);cargar()}
@@ -337,11 +399,19 @@ function ArticuloDetalle({art,temporada,config,onBack}){
               {det.telas.length===0?<div style={{padding:14,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin telas</div>
                 :det.telas.map(t=>(
                 <div key={t.id} className="precio-item">
-                  <div><div style={{fontWeight:600,fontSize:13}}>{t.precios_tela?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div></div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <b style={{fontSize:13}}>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
-                    <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
+                  <div><div style={{fontWeight:600,fontSize:13}}>{t.precios_tela?.nombre}</div>
+                    {!(editandoCantidad?.tabla==='articulo_telas'&&editandoCantidad?.id===t.id)&&
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div>}
                   </div>
+                  {editandoCantidad?.tabla==='articulo_telas'&&editandoCantidad?.id===t.id?(
+                    <EditInline valor={t.cantidad} onSave={v=>guardarCantidad('articulo_telas',t.id,v)} onCancel={()=>setEditandoCantidad(null)}/>
+                  ):(
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <b style={{fontSize:13}}>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
+                      <button className="btn-icon" onClick={()=>setEditandoCantidad({tabla:'articulo_telas',id:t.id})}>✏️</button>
+                      <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
+                    </div>
+                  )}
                 </div>
               ))}
               <div style={{padding:'7px 14px',background:'var(--surface2)',fontSize:12,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
@@ -356,11 +426,19 @@ function ArticuloDetalle({art,temporada,config,onBack}){
               {det.avios.length===0?<div style={{padding:14,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin avíos</div>
                 :det.avios.map(a=>(
                 <div key={a.id} className="precio-item">
-                  <div><div style={{fontWeight:600,fontSize:13}}>{a.precios_avios?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div></div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <b style={{fontSize:13}}>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
-                    <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
+                  <div><div style={{fontWeight:600,fontSize:13}}>{a.precios_avios?.nombre}</div>
+                    {!(editandoCantidad?.tabla==='articulo_avios'&&editandoCantidad?.id===a.id)&&
+                      <div style={{fontSize:11,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div>}
                   </div>
+                  {editandoCantidad?.tabla==='articulo_avios'&&editandoCantidad?.id===a.id?(
+                    <EditInline valor={a.cantidad} onSave={v=>guardarCantidad('articulo_avios',a.id,v)} onCancel={()=>setEditandoCantidad(null)}/>
+                  ):(
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <b style={{fontSize:13}}>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
+                      <button className="btn-icon" onClick={()=>setEditandoCantidad({tabla:'articulo_avios',id:a.id})}>✏️</button>
+                      <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
+                    </div>
+                  )}
                 </div>
               ))}
               <div style={{padding:'7px 14px',background:'var(--surface2)',fontSize:12,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
@@ -395,11 +473,19 @@ function ArticuloDetalle({art,temporada,config,onBack}){
             </div>
             {det.percha.map(p=>(
               <div key={p.id} className="precio-item" style={{paddingLeft:22}}>
-                <div><div style={{fontWeight:600,fontSize:13}}>{p.precios_perchas?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{p.cantidad} × {fmt(p.precios_perchas?.precio)}</div></div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <b style={{fontSize:13}}>{fmt(p.cantidad*(p.precios_perchas?.precio||0))}</b>
-                  <button className="btn-icon" onClick={()=>delPercha(p.id)}>🗑</button>
+                <div><div style={{fontWeight:600,fontSize:13}}>{p.precios_perchas?.nombre}</div>
+                  {!(editandoCantidad?.tabla==='articulo_percha'&&editandoCantidad?.id===p.id)&&
+                    <div style={{fontSize:11,color:'var(--text2)'}}>{p.cantidad} × {fmt(p.precios_perchas?.precio)}</div>}
                 </div>
+                {editandoCantidad?.tabla==='articulo_percha'&&editandoCantidad?.id===p.id?(
+                  <EditInline valor={p.cantidad} onSave={v=>guardarCantidad('articulo_percha',p.id,v)} onCancel={()=>setEditandoCantidad(null)}/>
+                ):(
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <b style={{fontSize:13}}>{fmt(p.cantidad*(p.precios_perchas?.precio||0))}</b>
+                    <button className="btn-icon" onClick={()=>setEditandoCantidad({tabla:'articulo_percha',id:p.id})}>✏️</button>
+                    <button className="btn-icon" onClick={()=>delPercha(p.id)}>🗑</button>
+                  </div>
+                )}
               </div>
             ))}
             <div style={{padding:'9px 14px',background:'var(--surface2)',fontWeight:800,display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)'}}>
@@ -527,21 +613,24 @@ function PreciosPage({tipo,titulo,icono,temporada}){
   const[loading,setLoading]=useState(true)
   const[editando,setEditando]=useState(null)
   const[modalNuevo,setModalNuevo]=useState(false)
+  const[busqueda,setBusqueda]=useState('')
   useEffect(()=>{cargar()},[temporada.id,tipo])
   async function cargar(){setLoading(true);const d=await getPrecios(tipo,temporada.id);setItems(d.sort((a,b)=>a.nombre.localeCompare(b.nombre)));setLoading(false)}
   async function guardarEdit(item,precio){await sb.schema('costos').from(tipo).update({precio:Number(precio)}).eq('id',item.id);setEditando(null);cargar()}
   async function del(id){if(!confirm('¿Eliminar?'))return;await sb.schema('costos').from(tipo).delete().eq('id',id);cargar()}
+  const filtrados=items.filter(i=>!busqueda||i.nombre.toLowerCase().includes(busqueda.toLowerCase()))
   return(
     <div className="page">
       <div className="page-header">
         <div><div className="page-title">{icono} {titulo}</div><div className="page-sub">{temporada.nombre} · {items.length} ítems</div></div>
         <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Agregar</button>
       </div>
-      {loading?<div className="loading">⏳ Cargando...</div>:items.length===0?(
-        <div className="empty"><div className="empty-icon">{icono}</div><div className="empty-title">Sin ítems todavía</div></div>
+      <input className="form-input" placeholder="🔍 Buscar por nombre..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
+      {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
+        <div className="empty"><div className="empty-icon">{icono}</div><div className="empty-title">{busqueda?'Sin resultados':'Sin ítems todavía'}</div></div>
       ):(
         <div className="card" style={{overflow:'hidden'}}>
-          {items.map(item=>(
+          {filtrados.map(item=>(
             <div key={item.id} className="precio-item">
               <div style={{flex:1}}>
                 <div style={{fontWeight:600,fontSize:14}}>{item.nombre}</div>
@@ -662,8 +751,8 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   )
 }
 
-function ModalNuevaTemp({onClose,onSave}){
-  const[nombre,setNombre]=useState('')
+function ModalNuevaTemp({onClose,onSave,sugerido}){
+  const[nombre,setNombre]=useState(sugerido||'')
   const[loading,setLoading]=useState(false)
   async function guardar(){if(!nombre)return;setLoading(true);await onSave(nombre);setLoading(false)}
   return(
