@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
+:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--violeta:#7c3aed;--violeta-bg:#f5f3ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;gap:0}
@@ -48,13 +48,17 @@ tr:hover td{background:var(--surface2)}
 .precio-greguera{color:var(--azul);font-weight:700}
 .precio-balbi{color:var(--verde);font-weight:700}
 .precio-sucati{color:var(--amarillo);font-weight:700}
+.precio-venta{color:var(--violeta);font-weight:700}
+.pct-tag{font-size:10px;font-weight:600;color:var(--text3)}
 .sep{height:1px;background:var(--border);margin:16px 0}
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
 .empty-icon{font-size:48px;margin-bottom:12px}
 .empty-title{font-size:18px;font-weight:700;color:var(--text1);margin-bottom:6px}
 .loading{text-align:center;padding:40px;color:var(--text2)}
+.detalle-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
 .tag-azul{background:var(--azul-bg);color:var(--azul)}
+@media(max-width:780px){.detalle-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.form-row{grid-template-columns:1fr}.nav-tab{padding:0 10px;font-size:12px}}
 </style>
 </head>
@@ -66,6 +70,7 @@ const{createClient}=supabase
 const sb=createClient('https://dptfgqdybjuhsehyhuyy.supabase.co',window.SUPABASE_ANON_KEY)
 const{useState,useEffect}=React
 const fmt=v=>v!=null?'$'+Math.round(v).toLocaleString('es-AR'):'—'
+const round500=v=>Math.round(v/500)*500
 
 async function getTemporadas(){const{data}=await sb.schema('costos').from('temporadas').select('*');return data||[]}
 async function getConfig(id){const{data}=await sb.schema('costos').from('config').select('*').eq('temporada_id',id).limit(1);return data?.[0]||null}
@@ -88,7 +93,8 @@ function calcPrecios(det,confeccion,config){
   const gr=(config?.margen_greguera||100)/100
   const ba=(config?.margen_balbi||50)/100
   const su=(config?.descuento_sucati||15)/100
-  return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),totalTela:t,totalAvios:a,totalPercha:p,corte}
+  const pv=(config?.margen_propio??config?.margen_greguera??100)/100
+  return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),precioVenta:round500(costo*(1+pv)),totalTela:t,totalAvios:a,totalPercha:p,corte}
 }
 
 function App(){
@@ -186,9 +192,10 @@ function ArticulosPage({temporada,config}){
             <thead><tr>
               <th>Artículo</th>
               <th style={{textAlign:'right'}}>Costo</th>
-              <th style={{textAlign:'right'}}>G. Reguera</th>
-              <th style={{textAlign:'right'}}>Balbi</th>
-              <th style={{textAlign:'right'}}>Sucati</th>
+              <th style={{textAlign:'right'}}>Precio Venta<div className="pct-tag">@{config?.margen_propio??config?.margen_greguera??100}%</div></th>
+              <th style={{textAlign:'right'}}>G. Reguera<div className="pct-tag">@{config?.margen_greguera??100}%</div></th>
+              <th style={{textAlign:'right'}}>Balbi<div className="pct-tag">@{config?.margen_balbi??50}%</div></th>
+              <th style={{textAlign:'right'}}>Sucati<div className="pct-tag">-{config?.descuento_sucati??15}%</div></th>
               <th></th>
             </tr></thead>
             <tbody>
@@ -207,6 +214,7 @@ function ArticulosPage({temporada,config}){
                     </div>
                   </td>
                   <td style={{textAlign:'right'}}><span className="precio-costo">{fmt(a.precios?.costo)}</span></td>
+                  <td style={{textAlign:'right'}}><span className="precio-venta">{fmt(a.precios?.precioVenta)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-greguera">{fmt(a.precios?.greguera)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-balbi">{fmt(a.precios?.balbi)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-sucati">{fmt(a.precios?.sucati)}</span></td>
@@ -225,10 +233,16 @@ function ArticulosPage({temporada,config}){
 function ArticuloDetalle({art,temporada,config,onBack}){
   const[det,setDet]=useState({telas:[],avios:[],percha:[]})
   const[conf,setConf]=useState(art.confeccion||0)
+  const[codigo,setCodigo]=useState(art.codigo)
+  const[descripcion,setDescripcion]=useState(art.descripcion||'')
   const[precios,setPrecios]=useState(art.precios||{})
   const[loading,setLoading]=useState(true)
   const[editConf,setEditConf]=useState(false)
   const[confInput,setConfInput]=useState(String(art.confeccion||0))
+  const[editCodigo,setEditCodigo]=useState(false)
+  const[codigoInput,setCodigoInput]=useState(art.codigo)
+  const[editDesc,setEditDesc]=useState(false)
+  const[descInput,setDescInput]=useState(art.descripcion||'')
   const[mTela,setMTela]=useState(false)
   const[mAvio,setMAvio]=useState(false)
   const[mPercha,setMPercha]=useState(false)
@@ -247,112 +261,149 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     await sb.schema('costos').from('articulos').update({confeccion:v}).eq('id',art.id)
     setConf(v);setEditConf(false)
   }
+  async function guardarCodigo(){
+    const v=codigoInput.trim()
+    if(!v)return
+    await sb.schema('costos').from('articulos').update({codigo:v}).eq('id',art.id)
+    setCodigo(v);setEditCodigo(false)
+  }
+  async function guardarDescripcion(){
+    const v=descInput.trim()
+    await sb.schema('costos').from('articulos').update({descripcion:v}).eq('id',art.id)
+    setDescripcion(v);setEditDesc(false)
+  }
   async function delTela(id){await sb.schema('costos').from('articulo_telas').delete().eq('id',id);cargar()}
   async function delAvio(id){await sb.schema('costos').from('articulo_avios').delete().eq('id',id);cargar()}
   async function delPercha(id){await sb.schema('costos').from('articulo_percha').delete().eq('id',id);cargar()}
 
   return(
-    <div className="page">
-      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',marginBottom:16,fontSize:14}}>← Volver</button>
-      <div style={{display:'flex',gap:20,marginBottom:24,flexWrap:'wrap',alignItems:'flex-start'}}>
+    <div className="page" style={{padding:'14px 16px'}}>
+      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',marginBottom:12,fontSize:14}}>← Volver</button>
+
+      <div style={{display:'flex',gap:14,marginBottom:14,alignItems:'flex-start'}}>
         <FotoUp artId={art.id} url={art.foto_url} onSave={cargar}/>
-        <div style={{flex:1}}>
-          <div style={{fontSize:26,fontWeight:800}}>{art.codigo}</div>
-          <div style={{fontSize:16,color:'var(--text2)',marginBottom:8}}>{art.descripcion}</div>
+        <div style={{flex:1,minWidth:0}}>
+          {editCodigo?(
+            <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+              <input className="form-input" value={codigoInput} onChange={e=>setCodigoInput(e.target.value)} style={{fontSize:17,fontWeight:800,padding:'4px 8px',width:150}} autoFocus/>
+              <button className="btn btn-sm btn-primary" onClick={guardarCodigo}>✓</button>
+              <button className="btn btn-sm btn-outline" onClick={()=>{setCodigoInput(codigo);setEditCodigo(false)}}>✕</button>
+            </div>
+          ):(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+              <div style={{fontSize:22,fontWeight:800}}>{codigo}</div>
+              <button className="btn-icon" onClick={()=>setEditCodigo(true)}>✏️</button>
+            </div>
+          )}
+          {editDesc?(
+            <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+              <input className="form-input" value={descInput} onChange={e=>setDescInput(e.target.value)} style={{fontSize:13,padding:'4px 8px'}} autoFocus/>
+              <button className="btn btn-sm btn-primary" onClick={guardarDescripcion}>✓</button>
+              <button className="btn btn-sm btn-outline" onClick={()=>{setDescInput(descripcion);setEditDesc(false)}}>✕</button>
+            </div>
+          ):(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+              <div style={{fontSize:14,color:'var(--text2)'}}>{descripcion||'Sin descripción'}</div>
+              <button className="btn-icon" onClick={()=>setEditDesc(true)}>✏️</button>
+            </div>
+          )}
           <span className="tag tag-azul">{temporada.nombre}</span>
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:10,marginBottom:20}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(96px,1fr))',gap:8,marginBottom:14}}>
         {[
           {l:'Costo',v:precios.costo,c:'precio-costo'},
-          {l:'G. Reguera',v:precios.greguera,c:'precio-greguera'},
-          {l:'Balbi',v:precios.balbi,c:'precio-balbi'},
-          {l:'Sucati',v:precios.sucati,c:'precio-sucati'},
+          {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
+          {l:'G. Reguera',v:precios.greguera,c:'precio-greguera',pct:'@'+(config?.margen_greguera??100)+'%'},
+          {l:'Balbi',v:precios.balbi,c:'precio-balbi',pct:'@'+(config?.margen_balbi??50)+'%'},
+          {l:'Sucati',v:precios.sucati,c:'precio-sucati',pct:'-'+(config?.descuento_sucati??15)+'%'},
         ].map(p=>(
-          <div key={p.l} className="card" style={{padding:'12px 14px'}}>
-            <div style={{fontSize:11,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:4}}>{p.l}</div>
-            <div className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</div>
+          <div key={p.l} className="card" style={{padding:'8px 10px'}}>
+            <div style={{fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:2}}>{p.l}</div>
+            <div className={p.c} style={{fontSize:16,fontWeight:800}}>{fmt(p.v)}</div>
+            {p.pct&&<div className="pct-tag">{p.pct}</div>}
           </div>
         ))}
       </div>
 
       {loading?<div className="loading">⏳ Cargando...</div>:(
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-
-          <div className="card">
-            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <b>🧵 Telas</b><button className="btn btn-sm btn-outline" onClick={()=>setMTela(true)}>+ Agregar</button>
-            </div>
-            {det.telas.length===0?<div style={{padding:20,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin telas</div>
-              :det.telas.map(t=>(
-              <div key={t.id} className="precio-item">
-                <div><div style={{fontWeight:600}}>{t.precios_tela?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div></div>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <b>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
-                  <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
-                </div>
+        <div className="detalle-grid">
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div className="card">
+              <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <b style={{fontSize:14}}>🧵 Telas</b><button className="btn btn-sm btn-outline" onClick={()=>setMTela(true)}>+ Agregar</button>
               </div>
-            ))}
-            <div style={{padding:'8px 14px',background:'var(--surface2)',fontSize:13,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
-              <span>Total telas</span><span>{fmt(precios.totalTela)}</span>
+              {det.telas.length===0?<div style={{padding:14,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin telas</div>
+                :det.telas.map(t=>(
+                <div key={t.id} className="precio-item">
+                  <div><div style={{fontWeight:600,fontSize:13}}>{t.precios_tela?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div></div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <b style={{fontSize:13}}>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
+                    <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{padding:'7px 14px',background:'var(--surface2)',fontSize:12,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
+                <span>Total telas</span><span>{fmt(precios.totalTela)}</span>
+              </div>
+            </div>
+
+            <div className="card">
+              <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <b style={{fontSize:14}}>🪡 Avíos</b><button className="btn btn-sm btn-outline" onClick={()=>setMAvio(true)}>+ Agregar</button>
+              </div>
+              {det.avios.length===0?<div style={{padding:14,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin avíos</div>
+                :det.avios.map(a=>(
+                <div key={a.id} className="precio-item">
+                  <div><div style={{fontWeight:600,fontSize:13}}>{a.precios_avios?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div></div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <b style={{fontSize:13}}>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
+                    <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{padding:'7px 14px',background:'var(--surface2)',fontSize:12,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
+                <span>Total avíos</span><span>{fmt(precios.totalAvios)}</span>
+              </div>
             </div>
           </div>
 
           <div className="card">
-            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <b>🪡 Avíos</b><button className="btn btn-sm btn-outline" onClick={()=>setMAvio(true)}>+ Agregar</button>
-            </div>
-            {det.avios.length===0?<div style={{padding:20,textAlign:'center',color:'var(--text2)',fontSize:13}}>Sin avíos</div>
-              :det.avios.map(a=>(
-              <div key={a.id} className="precio-item">
-                <div><div style={{fontWeight:600}}>{a.precios_avios?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div></div>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <b>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
-                  <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
-                </div>
-              </div>
-            ))}
-            <div style={{padding:'8px 14px',background:'var(--surface2)',fontSize:13,fontWeight:700,display:'flex',justifyContent:'space-between'}}>
-              <span>Total avíos</span><span>{fmt(precios.totalAvios)}</span>
-            </div>
-          </div>
-
-          <div className="card">
-            <div style={{padding:'12px 16px',borderBottom:'1px solid var(--border)',fontWeight:700}}>✂️ Producción</div>
+            <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:14}}>✂️ Producción</div>
             <div className="precio-item">
-              <span style={{fontWeight:600}}>Corte</span>
-              <b>{fmt(config?.precio_corte||0)}</b>
+              <span style={{fontWeight:600,fontSize:13}}>Corte</span>
+              <b style={{fontSize:13}}>{fmt(config?.precio_corte||0)}</b>
             </div>
             <div className="precio-item">
-              <div><div style={{fontWeight:600}}>Confección</div><div style={{fontSize:11,color:'var(--text3)'}}>manual por artículo</div></div>
+              <div><div style={{fontWeight:600,fontSize:13}}>Confección</div><div style={{fontSize:10,color:'var(--text3)'}}>manual por artículo</div></div>
               <div style={{display:'flex',alignItems:'center',gap:8}}>
                 {editConf?(
                   <>
                     <input type="number" value={confInput} onChange={e=>setConfInput(e.target.value)}
-                      style={{width:90,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:14,fontWeight:700}} autoFocus/>
+                      style={{width:85,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700}} autoFocus/>
                     <button className="btn btn-sm btn-primary" onClick={guardarConf}>✓</button>
                     <button className="btn btn-sm btn-outline" onClick={()=>setEditConf(false)}>✕</button>
                   </>
                 ):(
-                  <><b>{fmt(conf)}</b><button className="btn-icon" onClick={()=>{setConfInput(String(conf));setEditConf(true)}}>✏️</button></>
+                  <><b style={{fontSize:13}}>{fmt(conf)}</b><button className="btn-icon" onClick={()=>{setConfInput(String(conf));setEditConf(true)}}>✏️</button></>
                 )}
               </div>
             </div>
             <div style={{padding:'8px 14px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <b>🧲 Percha</b><button className="btn btn-sm btn-outline" onClick={()=>setMPercha(true)}>{det.percha.length?'Cambiar':'+ Agregar'}</button>
+              <b style={{fontSize:14}}>🧲 Percha</b><button className="btn btn-sm btn-outline" onClick={()=>setMPercha(true)}>{det.percha.length?'Cambiar':'+ Agregar'}</button>
             </div>
             {det.percha.map(p=>(
-              <div key={p.id} className="precio-item" style={{paddingLeft:24}}>
-                <div><div style={{fontWeight:600}}>{p.precios_perchas?.nombre}</div><div style={{fontSize:12,color:'var(--text2)'}}>{p.cantidad} × {fmt(p.precios_perchas?.precio)}</div></div>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <b>{fmt(p.cantidad*(p.precios_perchas?.precio||0))}</b>
+              <div key={p.id} className="precio-item" style={{paddingLeft:22}}>
+                <div><div style={{fontWeight:600,fontSize:13}}>{p.precios_perchas?.nombre}</div><div style={{fontSize:11,color:'var(--text2)'}}>{p.cantidad} × {fmt(p.precios_perchas?.precio)}</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <b style={{fontSize:13}}>{fmt(p.cantidad*(p.precios_perchas?.precio||0))}</b>
                   <button className="btn-icon" onClick={()=>delPercha(p.id)}>🗑</button>
                 </div>
               </div>
             ))}
-            <div style={{padding:'10px 14px',background:'var(--surface2)',fontWeight:800,display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)'}}>
-              <span>COSTO TOTAL</span><span style={{fontSize:17}}>{fmt(precios.costo)}</span>
+            <div style={{padding:'9px 14px',background:'var(--surface2)',fontWeight:800,display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)'}}>
+              <span style={{fontSize:13}}>COSTO TOTAL</span><span style={{fontSize:16}}>{fmt(precios.costo)}</span>
             </div>
           </div>
         </div>
@@ -560,7 +611,7 @@ function ModalNuevoPrecio({tipo,titulo,tempId,onClose,onSave}){
 }
 
 function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
-  const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15})
+  const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,margen_propio:config?.margen_propio??config?.margen_greguera??100})
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
   const[mTemp,setMTemp]=useState(false)
@@ -572,6 +623,7 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   }
   const set=(k,v)=>setForm(f=>({...f,[k]:v}))
   const ej=10000
+  const pv=round500(ej*(1+form.margen_propio/100))
   const gr=ej*(1+form.margen_greguera/100)
   const ba=ej*(1+form.margen_balbi/100)
   const su=gr*(1-form.descuento_sucati/100)
@@ -586,6 +638,7 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
           <div style={{fontWeight:700,marginBottom:16}}>Parámetros globales</div>
           <div className="form-group"><label className="form-label">Precio de corte ($)</label><input type="number" className="form-input" value={form.precio_corte} onChange={e=>set('precio_corte',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Se aplica a todos los artículos</div></div>
           <div className="sep"/>
+          <div className="form-group"><label className="form-label">Margen Precio Venta (%)</label><input type="number" className="form-input" value={form.margen_propio} onChange={e=>set('margen_propio',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Tu precio de referencia. Se redondea a múltiplos de $500</div></div>
           <div className="form-group"><label className="form-label">Margen G. Reguera (%)</label><input type="number" className="form-input" value={form.margen_greguera} onChange={e=>set('margen_greguera',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Margen Balbi (%)</label><input type="number" className="form-input" value={form.margen_balbi} onChange={e=>set('margen_balbi',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Descuento Sucati (%)</label><input type="number" className="form-input" value={form.descuento_sucati} onChange={e=>set('descuento_sucati',Number(e.target.value))}/></div>
@@ -593,7 +646,7 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
         </div>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>
-          {[{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
+          {[{l:'Precio Venta',v:pv,c:'precio-venta'},{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
             <div key={p.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
               <span style={{fontSize:14,color:'var(--text2)'}}>{p.l}</span>
               <span className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</span>
