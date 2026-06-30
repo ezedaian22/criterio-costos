@@ -123,7 +123,7 @@ function App(){
       <nav className="nav">
         <div className="nav-brand">Criterio <span>Costos</span></div>
         {tabs.map(t=>(
-          <div key={t} className={} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
+          <div key={t} className={`nav-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
         ))}
         <div style={{marginLeft:'auto'}}>
           <select value={temporada?.id||''} onChange={e=>cambiarTemporada(e.target.value)}
@@ -371,10 +371,10 @@ function FotoUp({artId,url,onSave}){
     const f=e.target.files[0];if(!f)return
     setSubiendo(true)
     const ext=f.name.split('.').pop()
-    const path=
-    const{error}=await sb.storage.from('fotos-costos').upload(path,f,{upsert:true})
+    const path=`${artId}-${Date.now()}.${ext}`
+    const{error}=await sb.storage.from('fotos').upload(path,f,{upsert:true})
     if(!error){
-      const{data}=sb.storage.from('fotos-costos').getPublicUrl(path)
+      const{data}=sb.storage.from('fotos').getPublicUrl(path)
       await sb.schema('costos').from('articulos').update({foto_url:data.publicUrl}).eq('id',artId)
       setU(data.publicUrl);onSave()
     }
