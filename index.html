@@ -367,6 +367,7 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   const[conf,setConf]=useState(art.confeccion||0)
   const[codigo,setCodigo]=useState(art.codigo)
   const[descripcion,setDescripcion]=useState(art.descripcion||'')
+  const[notas_taller,setNotasTaller]=useState(art.notas_taller||'')
   const[precios,setPrecios]=useState(art.precios||{})
   const[loading,setLoading]=useState(true)
   const[editConf,setEditConf]=useState(false)
@@ -375,6 +376,8 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   const[codigoInput,setCodigoInput]=useState(art.codigo)
   const[editDesc,setEditDesc]=useState(false)
   const[descInput,setDescInput]=useState(art.descripcion||'')
+  const[editTaller,setEditTaller]=useState(false)
+  const[tallerInput,setTallerInput]=useState(art.notas_taller||'')
   const[mTela,setMTela]=useState(false)
   const[mAvio,setMAvio]=useState(false)
   const[mPercha,setMPercha]=useState(false)
@@ -404,6 +407,11 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     const v=descInput.trim()
     await sb.schema('costos').from('articulos').update({descripcion:v}).eq('id',art.id)
     setDescripcion(v);setEditDesc(false)
+  }
+  async function guardarTaller(){
+    const v=tallerInput.trim()
+    await sb.schema('costos').from('articulos').update({notas_taller:v||null}).eq('id',art.id)
+    setNotasTaller(v);setEditTaller(false)
   }
   async function guardarCantidad(tabla,id,valor){
     const v=Number(valor)||0
@@ -444,6 +452,22 @@ function ArticuloDetalle({art,temporada,config,onBack}){
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
               <div style={{fontSize:14,color:'var(--text2)'}}>{descripcion||'Sin descripción'}</div>
               <button className="btn-icon" onClick={()=>setEditDesc(true)}>✏️</button>
+            </div>
+          )}
+          {editTaller?(
+            <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+              <input className="form-input" value={tallerInput} onChange={e=>setTallerInput(e.target.value)}
+                placeholder="Ej: Taller Marta, Eva..." style={{fontSize:13,padding:'4px 8px'}} autoFocus/>
+              <button className="btn btn-sm btn-primary" onClick={guardarTaller}>✓</button>
+              <button className="btn btn-sm btn-outline" onClick={()=>{setTallerInput(notas_taller);setEditTaller(false)}}>✕</button>
+            </div>
+          ):(
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+              <span style={{fontSize:12}}>🏭</span>
+              <span style={{fontSize:13,color:notas_taller?'var(--text1)':'var(--text3)',fontStyle:notas_taller?'normal':'italic'}}>
+                {notas_taller||'Sin talleres asignados'}
+              </span>
+              <button className="btn-icon" onClick={()=>setEditTaller(true)}>✏️</button>
             </div>
           )}
           <span className="tag tag-azul">{temporada.nombre}</span>
