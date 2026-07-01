@@ -208,14 +208,17 @@ function App(){
         <div style={{marginLeft:'auto',position:'relative'}}>
           <span className="tag tag-azul" style={{cursor:'pointer'}} onClick={()=>setMCambiar(v=>!v)}>{temporada?.nombre} ▾</span>
           {mCambiar&&(
-            <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.12)',minWidth:220,zIndex:200,padding:8}}>
-              <div style={{fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',padding:'4px 10px 8px'}}>Temporadas</div>
-              {temporadas.map(t=>(
-                <div key={t.id} onClick={()=>{setEstacion(detectarEstacion(t.nombre));elegirTemporada(t)}}
+            <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.12)',minWidth:230,zIndex:200,padding:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',padding:'4px 10px 8px'}}>
+                {estacion==='invierno'?'❄️ Temporadas de Invierno':'☀️ Temporadas de Verano'}
+              </div>
+              {temporadas.filter(t=>detectarEstacion(t.nombre)===estacion).map(t=>(
+                <div key={t.id} onClick={()=>elegirTemporada(t)}
                   style={{padding:'9px 12px',borderRadius:7,cursor:'pointer',fontWeight:t.id===temporada?.id?700:400,background:t.id===temporada?.id?'var(--azul-bg)':'transparent',color:t.id===temporada?.id?'var(--azul)':'var(--text1)',fontSize:14}}>{t.nombre}</div>
               ))}
               <div style={{borderTop:'1px solid var(--border)',marginTop:6,paddingTop:6}}>
                 <div onClick={()=>{setMCambiar(false);setMTemp(true)}} style={{padding:'9px 12px',borderRadius:7,cursor:'pointer',color:'var(--azul)',fontWeight:600,fontSize:14}}>+ Nueva temporada</div>
+                <div onClick={()=>{setMCambiar(false);setPantalla('caratula')}} style={{padding:'9px 12px',borderRadius:7,cursor:'pointer',color:'var(--text2)',fontSize:14}}>↩ Cambiar estación</div>
               </div>
             </div>
           )}
