@@ -787,7 +787,7 @@ function ListaPreciosPage({temporada,config}){
                               {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
                             </select>
                           ):(
-                            <span onClick={()=>setEditandoCatId(a.id)} style={{fontSize:12,color:a.categoria?'var(--text2)":'var(--text3)',cursor:'pointer',padding:'3px 8px',borderRadius:6,border:'1px dashed var(--border)',display:'inline-block'}}>
+                            <span onClick={()=>setEditandoCatId(a.id)} style={{fontSize:12,color:a.categoria?'var(--text2)':'var(--text3)',cursor:'pointer',padding:'3px 8px',borderRadius:6,border:'1px dashed var(--border)',display:'inline-block'}}>
                               {a.categoria||'+ categoría'}
                             </span>
                           )}
