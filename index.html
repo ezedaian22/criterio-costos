@@ -113,7 +113,7 @@ function detectarEstacion(nombre){
 }
 
 function App(){
-  const[pantalla,setPantalla]=useState('caratula') // caratula | temporadas | app
+  const[pantalla,setPantalla]=useState('caratula')
   const[estacion,setEstacion]=useState(null)
   const[tab,setTab]=useState('articulos')
   const[temporadas,setTemporadas]=useState([])
@@ -121,6 +121,7 @@ function App(){
   const[config,setConfig]=useState(null)
   const[loading,setLoading]=useState(true)
   const[mTemp,setMTemp]=useState(false)
+  const[mCambiar,setMCambiar]=useState(false)
 
   useEffect(()=>{
     getTemporadas().then(ts=>{setTemporadas(ts);setLoading(false)})
@@ -130,15 +131,29 @@ function App(){
     setTemporada(t)
     setConfig(await getConfig(t.id))
     setPantalla('app')
+    setMCambiar(false)
+    setMTemp(false)
   }
 
   async function crearTemporada(nombre){
     await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
     const ts=await getTemporadas()
     setTemporadas(ts)
-    setMTemp(false)
     const nueva=ts.find(t=>t.nombre===nombre)
     if(nueva)elegirTemporada(nueva)
+  }
+
+  async function elegirEstacion(est){
+    setEstacion(est)
+    const lista=temporadas.filter(t=>detectarEstacion(t.nombre)===est)
+    if(lista.length===1){
+      elegirTemporada(lista[0])
+    } else if(lista.length===0){
+      setMTemp(true)
+    } else {
+      // multiple → show picker inline on carátula
+      setPantalla('picker')
+    }
   }
 
   if(loading)return React.createElement('div',{className:'loading'},'⏳ Cargando...')
@@ -149,18 +164,19 @@ function App(){
         <div className="caratula-logo">Criterio <span>Costos</span></div>
         <div className="caratula-sub">Elegí la temporada</div>
         <div className="caratula-estaciones">
-          <button className="estacion-card" onClick={()=>{setEstacion('invierno');setPantalla('temporadas')}}>
+          <button className="estacion-card" onClick={()=>elegirEstacion('invierno')}>
             <span>❄️</span><div>Invierno</div>
           </button>
-          <button className="estacion-card" onClick={()=>{setEstacion('verano');setPantalla('temporadas')}}>
+          <button className="estacion-card" onClick={()=>elegirEstacion('verano')}>
             <span>☀️</span><div>Verano</div>
           </button>
         </div>
+        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
       </div>
     )
   }
 
-  if(pantalla==='temporadas'){
+  if(pantalla==='picker'){
     const lista=temporadas.filter(t=>detectarEstacion(t.nombre)===estacion)
     return(
       <div className="caratula">
@@ -168,19 +184,18 @@ function App(){
         <div className="caratula-logo" style={{fontSize:26,marginBottom:4}}>{estacion==='invierno'?'❄️ Invierno':'☀️ Verano'}</div>
         <div className="caratula-sub">Elegí una temporada o creá una nueva</div>
         <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%',maxWidth:360}}>
-          {lista.length===0&&<div style={{textAlign:'center',color:'var(--text2)',fontSize:14,marginBottom:6}}>Sin temporadas de {estacion} todavía</div>}
           {lista.map(t=>(
             <button key={t.id} className="btn btn-outline" style={{minHeight:48,fontSize:15}} onClick={()=>elegirTemporada(t)}>{t.nombre}</button>
           ))}
-          <button className="btn btn-primary" style={{minHeight:48}} onClick={()=>setMTemp(true)}>+ Nueva temporada de {estacion==='invierno'?'Invierno':'Verano'}</button>
+          <button className="btn btn-primary" style={{minHeight:48}} onClick={()=>setMTemp(true)}>+ Nueva temporada</button>
         </div>
         {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
       </div>
     )
   }
 
-  const tabs=['articulos','telas','avios','perchas','config']
-  const tabLabel={articulos:'📦 Artículos',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',config:'⚙️ Config'}
+  const tabs=['articulos','lista','telas','avios','perchas','config']
+  const tabLabel={articulos:'📦 Artículos',lista:'🏷️ Lista',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',config:'⚙️ Config'}
 
   return(
     <div>
@@ -189,12 +204,26 @@ function App(){
         {tabs.map(t=>(
           <div key={t} className={`nav-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
         ))}
-        <div style={{marginLeft:'auto'}}>
-          <span className="tag tag-azul" style={{cursor:'pointer'}} onClick={()=>setPantalla('temporadas')}>{temporada?.nombre} ▾</span>
+        <div style={{marginLeft:'auto',position:'relative'}}>
+          <span className="tag tag-azul" style={{cursor:'pointer'}} onClick={()=>setMCambiar(v=>!v)}>{temporada?.nombre} ▾</span>
+          {mCambiar&&(
+            <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.12)',minWidth:220,zIndex:200,padding:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',padding:'4px 10px 8px'}}>Temporadas</div>
+              {temporadas.map(t=>(
+                <div key={t.id} onClick={()=>{setEstacion(detectarEstacion(t.nombre));elegirTemporada(t)}}
+                  style={{padding:'9px 12px',borderRadius:7,cursor:'pointer',fontWeight:t.id===temporada?.id?700:400,background:t.id===temporada?.id?'var(--azul-bg)':'transparent',color:t.id===temporada?.id?'var(--azul)':'var(--text1)',fontSize:14}}>{t.nombre}</div>
+              ))}
+              <div style={{borderTop:'1px solid var(--border)',marginTop:6,paddingTop:6}}>
+                <div onClick={()=>{setMCambiar(false);setMTemp(true)}} style={{padding:'9px 12px',borderRadius:7,cursor:'pointer',color:'var(--azul)',fontWeight:600,fontSize:14}}>+ Nueva temporada</div>
+              </div>
+            </div>
+          )}
+          {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
         </div>
       </nav>
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
         :tab==='articulos'?<ArticulosPage temporada={temporada} config={config}/>
+        :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
         :tab==='perchas'?<PreciosPage tipo="precios_perchas" titulo="Precios de Perchas" icono="🧲" temporada={temporada}/>
@@ -604,6 +633,130 @@ function ModalNuevoArt({temporada,onClose,onSave}){
           <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!codigo}>{loading?'Guardando...':'✅ Crear artículo'}</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const CATEGORIAS=[
+  'Pantalones','Calzas','Shorts','Remeras','Musculosas','Camisas',
+  'Vestidos','Soleros','Blazers','Chalecos','Camperas','Tapados',
+  'Ponchos','Conjuntos','Otros'
+]
+
+function ListaPreciosPage({temporada,config}){
+  const[articulos,setArticulos]=useState([])
+  const[loading,setLoading]=useState(true)
+  const[editandoId,setEditandoId]=useState(null)
+  const[editandoCat,setEditandoCatId]=useState(null)
+  const[busqueda,setBusqueda]=useState(null) // null = todas las cats
+
+  useEffect(()=>{cargar()},[temporada.id])
+
+  async function cargar(){
+    setLoading(true)
+    const arts=await getArticulos(temporada.id)
+    const con=await Promise.all(arts.map(async a=>{
+      const det=await getArticuloDetalle(a.id)
+      return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
+    }))
+    setArticulos(con)
+    setLoading(false)
+  }
+
+  async function guardarPrecio(id,valor){
+    const v=valor===''?null:Number(valor)
+    await sb.schema('costos').from('articulos').update({precio_venta_manual:v}).eq('id',id)
+    setArticulos(arts=>arts.map(a=>a.id===id?{...a,precio_venta_manual:v}:a))
+    setEditandoId(null)
+  }
+
+  async function guardarCategoria(id,cat){
+    await sb.schema('costos').from('articulos').update({categoria:cat}).eq('id',id)
+    setArticulos(arts=>arts.map(a=>a.id===id?{...a,categoria:cat}:a))
+    setEditandoCatId(null)
+  }
+
+  // group by categoria
+  const grupos={}
+  const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||a.descripcion?.toLowerCase().includes(busqueda.toLowerCase()))
+  filtrados.forEach(a=>{
+    const cat=a.categoria||'Sin categoría'
+    if(!grupos[cat])grupos[cat]=[]
+    grupos[cat].push(a)
+  })
+  const ordenCats=[...CATEGORIAS,'Sin categoría','Otros'].filter(c=>grupos[c])
+  const restantes=Object.keys(grupos).filter(c=>!ordenCats.includes(c))
+  const catsOrdenadas=[...ordenCats,...restantes]
+
+  return(
+    <div className="page">
+      <div className="page-header">
+        <div><div className="page-title">🏷️ Lista de Precios</div><div className="page-sub">{temporada.nombre} · {articulos.length} artículos</div></div>
+      </div>
+      <input className="form-input" placeholder="🔍 Buscar código o descripción..." value={busqueda||''} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
+      {loading?<div className="loading">⏳ Cargando...</div>:(
+        <div style={{display:'flex',flexDirection:'column',gap:20}}>
+          {catsOrdenadas.map(cat=>(
+            <div key={cat} className="card" style={{overflow:'hidden'}}>
+              <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,textTransform:'uppercase',letterSpacing:'.5px',color:'var(--text2)',background:'var(--surface2)'}}>{cat}</div>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead><tr>
+                  <th style={{padding:'8px 12px',fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',textAlign:'left',borderBottom:'1px solid var(--border)'}}>Art.</th>
+                  <th style={{padding:'8px 12px',fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',textAlign:'left',borderBottom:'1px solid var(--border)'}}>Descripción</th>
+                  <th style={{padding:'8px 12px',fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',textAlign:'left',borderBottom:'1px solid var(--border)'}}>Categoría</th>
+                  <th style={{padding:'8px 12px',fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',textAlign:'right',borderBottom:'1px solid var(--border)'}}>Costo</th>
+                  <th style={{padding:'8px 12px',fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',textAlign:'right',borderBottom:'1px solid var(--border)'}}>Precio Venta</th>
+                </tr></thead>
+                <tbody>
+                  {grupos[cat].map(a=>{
+                    const pvCalc=a.precios?.precioVenta
+                    const pvFinal=a.precio_venta_manual!=null?a.precio_venta_manual:pvCalc
+                    const esManual=a.precio_venta_manual!=null
+                    return(
+                      <tr key={a.id} style={{borderBottom:'1px solid var(--border)'}}>
+                        <td style={{padding:'10px 12px',fontWeight:700,fontSize:14}}>{a.codigo}</td>
+                        <td style={{padding:'10px 12px',fontSize:13,color:'var(--text2)'}}>{a.descripcion}</td>
+                        <td style={{padding:'10px 12px'}}>
+                          {editandoCat===a.id?(
+                            <select autoFocus className="form-input" style={{padding:'4px 8px',fontSize:12}}
+                              defaultValue={a.categoria||''}
+                              onChange={e=>guardarCategoria(a.id,e.target.value)}
+                              onBlur={()=>setEditandoCatId(null)}>
+                              <option value="">Sin categoría</option>
+                              {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
+                            </select>
+                          ):(
+                            <span onClick={()=>setEditandoCatId(a.id)} style={{fontSize:12,color:a.categoria?'var(--text2)':'var(--text3)',cursor:'pointer',padding:'3px 8px',borderRadius:6,border:'1px dashed var(--border)',display:'inline-block'}}>
+                              {a.categoria||'+ categoría'}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{padding:'10px 12px',textAlign:'right',fontSize:13,color:'var(--text2)'}}>{fmt(a.precios?.costo)}</td>
+                        <td style={{padding:'10px 12px',textAlign:'right'}}>
+                          {editandoId===a.id?(
+                            <div style={{display:'flex',alignItems:'center',gap:6,justifyContent:'flex-end'}}>
+                              <input type="number" autoFocus defaultValue={pvFinal||''} onBlur={e=>guardarPrecio(a.id,e.target.value)}
+                                style={{width:100,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700,textAlign:'right'}}/>
+                              {esManual&&<button className="btn-icon" title="Volver al precio calculado" onClick={()=>guardarPrecio(a.id,'')}>↺</button>}
+                            </div>
+                          ):(
+                            <div style={{display:'flex',alignItems:'center',gap:8,justifyContent:'flex-end'}}>
+                              <span className="precio-venta" style={{fontSize:16}} onClick={()=>setEditandoId(a.id)}>{fmt(pvFinal)}</span>
+                              {esManual&&<span style={{fontSize:10,background:'var(--violeta-bg)',color:'var(--violeta)',padding:'2px 6px',borderRadius:10,fontWeight:700}}>manual</span>}
+                              <button className="btn-icon" onClick={()=>setEditandoId(a.id)}>✏️</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          {catsOrdenadas.length===0&&<div className="empty"><div className="empty-title">Sin artículos cargados todavía</div></div>}
+        </div>
+      )}
     </div>
   )
 }
