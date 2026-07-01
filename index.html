@@ -759,6 +759,9 @@ function ListaPreciosPage({temporada,config}){
     ws.addRow([null,new Date().toLocaleDateString('es-AR')]).font={size:10,color:{argb:'FF666666'}}
     ws.addRow([])
 
+    const border={top:{style:'thin',color:{argb:'FFB0B0B0'}},left:{style:'thin',color:{argb:'FFB0B0B0'}},bottom:{style:'thin',color:{argb:'FFB0B0B0'}},right:{style:'thin',color:{argb:'FFB0B0B0'}}}
+    const borderBold={top:{style:'medium',color:{argb:'FF555555'}},left:{style:'medium',color:{argb:'FF555555'}},bottom:{style:'medium',color:{argb:'FF555555'}},right:{style:'medium',color:{argb:'FF555555'}}}
+
     // Encabezados de columnas
     const hRow=ws.addRow([null,'ARTÍCULO','DESCRIPCIÓN',null,null,null,'PRECIO','-10%','-17%'])
     hRow.font={bold:true,size:11}
@@ -766,6 +769,7 @@ function ListaPreciosPage({temporada,config}){
       cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A1A18'}}
       cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11}
       cell.alignment={horizontal:col>=7?'right':'left',vertical:'middle'}
+      cell.border=borderBold
     })
     hRow.height=22
     ws.addRow([])
@@ -782,6 +786,7 @@ function ListaPreciosPage({temporada,config}){
       catRow.height=18
       catRow.eachCell({includeEmpty:true},(cell)=>{
         cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8E8E4'}}
+        cell.border=borderBold
       })
 
       grupos2[cat].forEach((a,i)=>{
@@ -790,13 +795,12 @@ function ListaPreciosPage({temporada,config}){
         const su=Math.round(pv*0.83)
         const dRow=ws.addRow([null,a.codigo,a.descripcion||'',null,null,null,pv||null,gr||null,su||null])
         dRow.height=16
-        // Alternating row color
         if(i%2===1){
           dRow.eachCell({includeEmpty:true},(cell)=>{
             cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF7F7F5'}}
           })
         }
-        // Align prices right
+        dRow.eachCell({includeEmpty:true},(cell)=>{cell.border=border})
         ;[7,8,9].forEach(c=>{
           const cell=dRow.getCell(c)
           cell.alignment={horizontal:'right'}
