@@ -254,6 +254,15 @@ function ArticulosPage({temporada,config}){
     setLoading(false)
   }
 
+  const esIncompleto=a=>{
+    const sinTelas=!a.detalle?.telas?.length
+    const telaCero=a.detalle?.telas?.some(t=>!t.cantidad||t.cantidad===0)
+    const sinConf=!a.confeccion||a.confeccion===0
+    return{incompleto:sinTelas||telaCero||sinConf,sinTelas,telaCero,sinConf}
+  }
+  const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
+  const[verIncompletos,setVerIncompletos]=useState(true)
+
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
@@ -264,6 +273,44 @@ function ArticulosPage({temporada,config}){
         <div><div className="page-title">Artículos</div><div className="page-sub">{temporada.nombre} · {articulos.length} artículos</div></div>
         <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Nuevo artículo</button>
       </div>
+
+      {!loading&&incompletos.length>0&&(
+        <div style={{marginBottom:16,border:'1.5px solid #fbbf24',borderRadius:10,overflow:'hidden'}}>
+          <div onClick={()=>setVerIncompletos(v=>!v)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:'#fffbeb',cursor:'pointer'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:16}}>⚠️</span>
+              <span style={{fontWeight:700,fontSize:14,color:'#92400e'}}>Artículos incompletos</span>
+              <span style={{background:'#fbbf24',color:'#fff',borderRadius:20,fontSize:11,fontWeight:700,padding:'2px 8px'}}>{incompletos.length}</span>
+            </div>
+            <span style={{color:'#92400e',fontSize:13}}>{verIncompletos?'▲ Ocultar':'▼ Ver'}</span>
+          </div>
+          {verIncompletos&&(
+            <div style={{background:'#fff'}}>
+              {incompletos.map((a,i)=>{
+                const {sinTelas,telaCero,sinConf}=esIncompleto(a)
+                const motivos=[]
+                if(sinTelas)motivos.push('sin tela')
+                if(telaCero)motivos.push('cantidad de tela en 0')
+                if(sinConf)motivos.push('sin confección')
+                return(
+                  <div key={a.id} onClick={()=>setSeleccionado(a)}
+                    style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',borderTop:'1px solid #fde68a',cursor:'pointer',background:i%2===0?'#fffdf5':'#fff'}}>
+                    <div>
+                      <span style={{fontWeight:700,fontSize:14}}>{a.codigo}</span>
+                      <span style={{fontSize:13,color:'var(--text2)',marginLeft:10}}>{a.descripcion}</span>
+                    </div>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      {motivos.map(m=><span key={m} style={{fontSize:11,background:'#fef3c7',color:'#92400e',padding:'2px 8px',borderRadius:20,fontWeight:600}}>{m}</span>)}
+                      <span style={{color:'var(--azul)',fontSize:16}}>›</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <input className="form-input" placeholder="🔍 Buscar por código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
       {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
         <div className="empty">
