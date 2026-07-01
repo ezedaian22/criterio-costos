@@ -691,7 +691,12 @@ function ModalNuevoArt({temporada,onClose,onSave}){
   async function guardar(){
     if(!codigo)return
     setLoading(true)
-    await sb.schema('costos').from('articulos').insert({temporada_id:temporada.id,codigo,descripcion:desc,confeccion:Number(conf)||0})
+    const{data:nuevo}=await sb.schema('costos').from('articulos').insert({temporada_id:temporada.id,codigo,descripcion:desc,confeccion:Number(conf)||0}).select().single()
+    // Asignar Percha 300 por defecto
+    if(nuevo){
+      const{data:percha}=await sb.schema('costos').from('precios_perchas').select('id').eq('temporada_id',temporada.id).ilike('nombre','Percha 300').limit(1).single()
+      if(percha) await sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:percha.id,cantidad:1})
+    }
     setLoading(false);onSave()
   }
   return(
