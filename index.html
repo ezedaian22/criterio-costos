@@ -637,11 +637,11 @@ function FotoUp({artId,url,onSave}){
     setSubiendo(true);setErr('')
     const ext=f.name.split('.').pop()
     const path=`${artId}-${Date.now()}.${ext}`
-    const{error}=await sb.storage.from('fotos').upload(path,f,{upsert:true})
+    const{error}=await sb.storage.from('fotos-costos').upload(path,f,{upsert:true})
     if(error){
       setErr(error.message||'Error al subir')
     } else {
-      const{data}=sb.storage.from('fotos').getPublicUrl(path)
+      const{data}=sb.storage.from('fotos-costos').getPublicUrl(path)
       await sb.schema('costos').from('articulos').update({foto_url:data.publicUrl}).eq('id',artId)
       setU(data.publicUrl);onSave()
     }
