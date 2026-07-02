@@ -269,8 +269,10 @@ function ArticulosPage({temporada,config}){
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
   const ultimoNumerico=React.useMemo(()=>{
-    const nums=articulos.map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
-    return nums.length?Math.max(...nums):null
+    const numericos=articulos.filter(a=>!isNaN(parseInt(a.codigo))&&a.created_at)
+    if(!numericos.length)return null
+    numericos.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
+    return parseInt(numericos[0].codigo)
   },[articulos])
 
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
@@ -696,8 +698,10 @@ function ModalAdd({tipo,artId,tempId,onClose,onSave}){
 
 function ModalNuevoArt({temporada,onClose,onSave,articulos}){
   const ultimoNumerico=React.useMemo(()=>{
-    const nums=(articulos||[]).map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
-    return nums.length?Math.max(...nums):null
+    const numericos=(articulos||[]).filter(a=>!isNaN(parseInt(a.codigo))&&a.created_at)
+    if(!numericos.length)return null
+    numericos.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
+    return parseInt(numericos[0].codigo)
   },[articulos])
   const[codigo,setCodigo]=useState(ultimoNumerico?String(ultimoNumerico+1):'')
   const[desc,setDesc]=useState('')
