@@ -269,11 +269,18 @@ function ArticulosPage({temporada,config}){
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
   const ultimoNumerico=React.useMemo(()=>{
-    const numericos=articulos.filter(a=>!isNaN(parseInt(a.codigo))&&a.created_at)
+    const nombre=(temporada?.nombre||'').toLowerCase()
+    const numericos=articulos.map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
     if(!numericos.length)return null
-    numericos.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
-    return parseInt(numericos[0].codigo)
-  },[articulos])
+    // Invierno: códigos 2xxx (2000-2999). Verano: códigos < 2000
+    if(nombre.includes('invierno')){
+      const inv=numericos.filter(n=>n>=2000&&n<3000)
+      return inv.length?Math.max(...inv):null
+    } else {
+      const ver=numericos.filter(n=>n<2000)
+      return ver.length?Math.max(...ver):null
+    }
+  },[articulos,temporada])
 
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
 
@@ -698,11 +705,17 @@ function ModalAdd({tipo,artId,tempId,onClose,onSave}){
 
 function ModalNuevoArt({temporada,onClose,onSave,articulos}){
   const ultimoNumerico=React.useMemo(()=>{
-    const numericos=(articulos||[]).filter(a=>!isNaN(parseInt(a.codigo))&&a.created_at)
+    const nombre=(temporada?.nombre||'').toLowerCase()
+    const numericos=(articulos||[]).map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
     if(!numericos.length)return null
-    numericos.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))
-    return parseInt(numericos[0].codigo)
-  },[articulos])
+    if(nombre.includes('invierno')){
+      const inv=numericos.filter(n=>n>=2000&&n<3000)
+      return inv.length?Math.max(...inv):null
+    } else {
+      const ver=numericos.filter(n=>n<2000)
+      return ver.length?Math.max(...ver):null
+    }
+  },[articulos,temporada])
   const[codigo,setCodigo]=useState(ultimoNumerico?String(ultimoNumerico+1):'')
   const[desc,setDesc]=useState('')
   const[conf,setConf]=useState('')
