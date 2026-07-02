@@ -1098,11 +1098,14 @@ function ModalNuevoPrecio({tipo,titulo,tempId,onClose,onSave}){
 
 function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,margen_propio:config?.margen_propio??config?.margen_greguera??100})
+  const lsKey=`ultimoCodigo_${temporada.id}`
+  const[ultimoCod,setUltimoCod]=useState(localStorage.getItem(lsKey)||'')
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
   const[mTemp,setMTemp]=useState(false)
   async function guardar(){
     setGuardando(true)
+    if(ultimoCod.trim()) localStorage.setItem(lsKey,ultimoCod.trim())
     if(config){const{data}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single();onSave(data)}
     else{const{data}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single();onSave(data)}
     setGuardando(false);setOk(true);setTimeout(()=>setOk(false),2000)
@@ -1122,6 +1125,14 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Parámetros globales</div>
+          <div className="form-group">
+            <label className="form-label">Último código usado</label>
+            <input type="number" className="form-input" value={ultimoCod} onChange={e=>setUltimoCod(e.target.value)} placeholder="Ej: 2314"/>
+            <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>
+              {ultimoCod?`Próximo artículo: ${parseInt(ultimoCod)+1}`:'Ingresá el último código para que se sugiera el siguiente al crear uno nuevo'}
+            </div>
+          </div>
+          <div className="sep"/>
           <div className="form-group"><label className="form-label">Precio de corte ($)</label><input type="number" className="form-input" value={form.precio_corte} onChange={e=>set('precio_corte',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Se aplica a todos los artículos</div></div>
           <div className="sep"/>
           <div className="form-group"><label className="form-label">Margen Precio Venta (%)</label><input type="number" className="form-input" value={form.margen_propio} onChange={e=>set('margen_propio',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Tu precio de referencia. Se redondea a múltiplos de $500</div></div>
