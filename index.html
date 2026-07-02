@@ -277,7 +277,7 @@ function ArticulosPage({temporada,config}){
       const inv=numericos.filter(n=>n>=2000&&n<3000)
       return inv.length?Math.max(...inv):null
     } else {
-      const ver=numericos.filter(n=>n<2000)
+      const ver=numericos.filter(n=>n<1000)
       return ver.length?Math.max(...ver):null
     }
   },[articulos,temporada])
@@ -712,7 +712,7 @@ function ModalNuevoArt({temporada,onClose,onSave,articulos}){
       const inv=numericos.filter(n=>n>=2000&&n<3000)
       return inv.length?Math.max(...inv):null
     } else {
-      const ver=numericos.filter(n=>n<2000)
+      const ver=numericos.filter(n=>n<1000)
       return ver.length?Math.max(...ver):null
     }
   },[articulos,temporada])
