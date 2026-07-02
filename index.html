@@ -437,9 +437,21 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   async function delAvio(id){await sb.schema('costos').from('articulo_avios').delete().eq('id',id);cargar()}
   async function delPercha(id){await sb.schema('costos').from('articulo_percha').delete().eq('id',id);cargar()}
 
+  async function eliminarArticulo(){
+    if(!confirm(`¿Eliminar el artículo ${codigo}? Esta acción no se puede deshacer.`))return
+    await sb.schema('costos').from('articulo_telas').delete().eq('articulo_id',art.id)
+    await sb.schema('costos').from('articulo_avios').delete().eq('articulo_id',art.id)
+    await sb.schema('costos').from('articulo_percha').delete().eq('articulo_id',art.id)
+    await sb.schema('costos').from('articulos').delete().eq('id',art.id)
+    onBack()
+  }
+
   return(
     <div className="page" style={{padding:'14px 16px'}}>
-      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',marginBottom:12,fontSize:14}}>← Volver</button>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',fontSize:14}}>← Volver</button>
+        <button onClick={eliminarArticulo} style={{display:'flex',alignItems:'center',gap:6,color:'var(--rojo)',background:'none',border:'1.5px solid var(--rojo)',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:13,fontWeight:600}}>🗑 Eliminar artículo</button>
+      </div>
 
       <div style={{display:'flex',gap:14,marginBottom:14,alignItems:'flex-start'}}>
         <FotoUp artId={art.id} url={art.foto_url} onSave={cargar}/>
