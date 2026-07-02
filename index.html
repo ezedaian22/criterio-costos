@@ -631,13 +631,16 @@ function ArticuloDetalle({art,temporada,config,onBack}){
 function FotoUp({artId,url,onSave}){
   const[subiendo,setSubiendo]=useState(false)
   const[u,setU]=useState(url)
+  const[err,setErr]=useState('')
   async function subir(e){
     const f=e.target.files[0];if(!f)return
-    setSubiendo(true)
+    setSubiendo(true);setErr('')
     const ext=f.name.split('.').pop()
     const path=`${artId}-${Date.now()}.${ext}`
     const{error}=await sb.storage.from('fotos').upload(path,f,{upsert:true})
-    if(!error){
+    if(error){
+      setErr(error.message||'Error al subir')
+    } else {
       const{data}=sb.storage.from('fotos').getPublicUrl(path)
       await sb.schema('costos').from('articulos').update({foto_url:data.publicUrl}).eq('id',artId)
       setU(data.publicUrl);onSave()
@@ -645,15 +648,18 @@ function FotoUp({artId,url,onSave}){
     setSubiendo(false)
   }
   return(
-    <label style={{cursor:'pointer'}}>
-      <input type="file" accept="image/*" onChange={subir} style={{display:'none'}}/>
-      {u?<img src={u} alt="" style={{width:90,height:90,borderRadius:10,objectFit:'cover',border:'2px solid var(--border)'}}/>
-        :<div style={{width:90,height:90,borderRadius:10,background:'var(--surface2)',border:'2px dashed var(--border)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4}}>
-          <span style={{fontSize:28}}>📷</span><span style={{fontSize:10,color:'var(--text3)'}}>Agregar foto</span>
-        </div>
-      }
+    <div>
+      <label style={{cursor:'pointer'}}>
+        <input type="file" accept="image/*" onChange={subir} style={{display:'none'}}/>
+        {u?<img src={u} alt="" style={{width:90,height:90,borderRadius:10,objectFit:'cover',border:'2px solid var(--border)'}}/>
+          :<div style={{width:90,height:90,borderRadius:10,background:'var(--surface2)',border:'2px dashed var(--border)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:4}}>
+            <span style={{fontSize:28}}>📷</span><span style={{fontSize:10,color:'var(--text3)'}}>Agregar foto</span>
+          </div>
+        }
+      </label>
       {subiendo&&<div style={{fontSize:11,color:'var(--text3)',textAlign:'center',marginTop:4}}>Subiendo...</div>}
-    </label>
+      {err&&<div style={{fontSize:11,color:'var(--rojo)',marginTop:4,maxWidth:90}}>{err}</div>}
+    </div>
   )
 }
 
