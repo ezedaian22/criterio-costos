@@ -268,12 +268,23 @@ function ArticulosPage({temporada,config}){
 
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
+  const ultimoNumerico=React.useMemo(()=>{
+    const nums=articulos.map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
+    return nums.length?Math.max(...nums):null
+  },[articulos])
+
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
 
   return(
     <div className="page">
       <div className="page-header">
-        <div><div className="page-title">Artículos</div><div className="page-sub">{temporada.nombre} · {articulos.length} artículos</div></div>
+        <div>
+          <div className="page-title">Artículos</div>
+          <div className="page-sub">
+            {temporada.nombre} · {articulos.length} artículos
+            {ultimoNumerico&&<span style={{marginLeft:10,color:'var(--azul)',fontWeight:700}}>· último código: {ultimoNumerico} → siguiente: {ultimoNumerico+1}</span>}
+          </div>
+        </div>
         <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Nuevo artículo</button>
       </div>
 
@@ -684,19 +695,14 @@ function ModalAdd({tipo,artId,tempId,onClose,onSave}){
 }
 
 function ModalNuevoArt({temporada,onClose,onSave,articulos}){
-  const[codigo,setCodigo]=useState('')
+  const ultimoNumerico=React.useMemo(()=>{
+    const nums=(articulos||[]).map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
+    return nums.length?Math.max(...nums):null
+  },[articulos])
+  const[codigo,setCodigo]=useState(ultimoNumerico?String(ultimoNumerico+1):'')
   const[desc,setDesc]=useState('')
   const[conf,setConf]=useState('')
   const[loading,setLoading]=useState(false)
-
-  // Calcula el último código numérico y sugiere el siguiente
-  const ultimoNumerico=React.useMemo(()=>{
-    const nums=articulos.map(a=>parseInt(a.codigo)).filter(n=>!isNaN(n))
-    if(!nums.length)return null
-    return Math.max(...nums)
-  },[articulos])
-  const sugerido=ultimoNumerico?ultimoNumerico+1:null
-
   async function guardar(){
     if(!codigo)return
     setLoading(true)
@@ -712,16 +718,7 @@ function ModalNuevoArt({temporada,onClose,onSave,articulos}){
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header"><div className="modal-title">Nuevo artículo</div><button className="modal-close" onClick={onClose}>×</button></div>
         <div className="modal-body">
-          {sugerido&&(
-            <div style={{background:'var(--azul-bg)',border:'1px solid #bfdbfe',borderRadius:8,padding:'10px 14px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div>
-                <div style={{fontSize:11,color:'var(--azul)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px'}}>Último código usado</div>
-                <div style={{fontSize:18,fontWeight:800,color:'var(--text1)'}}>{ultimoNumerico} → <span style={{color:'var(--azul)'}}>{sugerido}</span></div>
-              </div>
-              <button onClick={()=>setCodigo(String(sugerido))} className="btn btn-sm btn-primary">Usar {sugerido}</button>
-            </div>
-          )}
-          <div className="form-group"><label className="form-label">Código *</label><input className="form-input" placeholder="Ej: 2315" value={codigo} onChange={e=>setCodigo(e.target.value)} autoFocus/></div>
+          <div className="form-group"><label className="form-label">Código *</label><input className="form-input" value={codigo} onChange={e=>setCodigo(e.target.value)} autoFocus/></div>
           <div className="form-group"><label className="form-label">Descripción</label><input className="form-input" placeholder="Ej: chaleco polar con tapa cierre" value={desc} onChange={e=>setDesc(e.target.value)}/></div>
           <div className="form-group"><label className="form-label">Confección ($)</label><input type="number" className="form-input" placeholder="0" value={conf} onChange={e=>setConf(e.target.value)}/></div>
         </div>
