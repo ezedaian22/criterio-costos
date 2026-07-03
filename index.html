@@ -261,7 +261,8 @@ function ArticulosPage({temporada,config}){
     const sinTelas=!a.detalle?.telas?.length
     const telaCero=a.detalle?.telas?.some(t=>!t.cantidad||t.cantidad===0)
     const sinConf=!a.confeccion||a.confeccion===0
-    return{incompleto:sinTelas||telaCero||sinConf,sinTelas,telaCero,sinConf}
+    const sinFoto=!a.foto_url
+    return{incompleto:sinTelas||telaCero||sinConf||sinFoto,sinTelas,telaCero,sinConf,sinFoto}
   }
   const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
   const[verIncompletos,setVerIncompletos]=useState(true)
@@ -301,11 +302,12 @@ function ArticulosPage({temporada,config}){
           {verIncompletos&&(
             <div style={{background:'#fff'}}>
               {incompletos.map((a,i)=>{
-                const {sinTelas,telaCero,sinConf}=esIncompleto(a)
+                const {sinTelas,telaCero,sinConf,sinFoto}=esIncompleto(a)
                 const motivos=[]
                 if(sinTelas)motivos.push('sin tela')
                 if(telaCero)motivos.push('cantidad de tela en 0')
                 if(sinConf)motivos.push('sin confección')
+                if(sinFoto)motivos.push('sin foto')
                 return(
                   <div key={a.id} onClick={()=>setSeleccionado(a)}
                     style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',borderTop:'1px solid #fde68a',cursor:'pointer',background:i%2===0?'#fffdf5':'#fff'}}>
