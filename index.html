@@ -243,6 +243,7 @@ function ArticulosPage({temporada,config}){
   const[busqueda,setBusqueda]=useState('')
   const[modalNuevo,setModalNuevo]=useState(false)
   const[seleccionado,setSeleccionado]=useState(null)
+  const[verIncompletos,setVerIncompletos]=useState(false)
 
   useEffect(()=>{cargar()},[temporada.id])
 
@@ -265,7 +266,6 @@ function ArticulosPage({temporada,config}){
     return{incompleto:sinTelas||telaCero||sinConf||sinFoto,sinTelas,telaCero,sinConf,sinFoto}
   }
   const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
-  const[verIncompletos,setVerIncompletos]=useState(true)
 
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
