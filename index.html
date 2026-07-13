@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <style>
 :root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--violeta:#7c3aed;--violeta-bg:#f5f3ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
@@ -824,8 +825,90 @@ function ListaPreciosPage({temporada,config}){
   const[editandoId,setEditandoId]=useState(null)
   const[editandoCat,setEditandoCatId]=useState(null)
   const[busqueda,setBusqueda]=useState('')
+  const[subiendo,setSubiendo]=useState(false)
+  const gTokenRef=React.useRef(null)
 
   useEffect(()=>{cargar()},[temporada.id])
+
+  async function obtenerToken(){
+    return new Promise((resolve,reject)=>{
+      if(gTokenRef.current&&Date.now()<gTokenRef.current.expiry){resolve(gTokenRef.current.token);return}
+      const client=window.google.accounts.oauth2.initTokenClient({
+        client_id:'51651260606-i84b1cun6hv8d87m31n6husdvvvrc5hr.apps.googleusercontent.com',
+        scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+        callback:(resp)=>{
+          if(resp.error){reject(resp.error);return}
+          gTokenRef.current={token:resp.access_token,expiry:Date.now()+3500000}
+          resolve(resp.access_token)
+        }
+      })
+      client.requestAccessToken()
+    })
+  }
+
+  async function exportarSheets(){
+    try{
+      setSubiendo(true)
+      const token=await obtenerToken()
+      const grupos2={}
+      articulos.forEach(a=>{const cat=a.categoria||'Sin categoría';if(!grupos2[cat])grupos2[cat]=[];grupos2[cat].push(a)})
+      const todas=[...[...CATEGORIAS,'Sin categoría'].filter(c=>grupos2[c]),...Object.keys(grupos2).filter(c=>![...CATEGORIAS,'Sin categoría'].includes(c))]
+      const rows=[
+        ['','LAVALLE COMERCIAL S.R.L.'],
+        ['','Ecuador 425 - Cap. Fed.'],
+        ['','Tel / fax: 4865-0192'],
+        ['',`LISTA DE PRECIOS ${temporada.nombre.toUpperCase()}`],
+        ['',new Date().toLocaleDateString('es-AR')],
+        [],
+        ['','ARTÍCULO','DESCRIPCIÓN','','','','PRECIO','-10%','-17%'],
+        []
+      ]
+      const catRowIdxs=[]
+      todas.forEach(cat=>{
+        rows.push([])
+        catRowIdxs.push(rows.length-1)
+        rows.push(['',cat.toUpperCase()])
+        grupos2[cat].forEach(a=>{
+          const pv=a.precio_venta_manual!=null?a.precio_venta_manual:(a.precios?.precioVenta||0)
+          rows.push(['',a.codigo,a.descripcion||'','','','',pv||'',Math.round((pv||0)*0.9)||'',Math.round((pv||0)*0.83)||''])
+        })
+      })
+      const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({properties:{title:`Lista de Precios — ${temporada.nombre}`}})
+      })
+      const sheet=await createRes.json()
+      const sid=sheet.spreadsheetId
+      const sheetId=sheet.sheets[0].properties.sheetId
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/A1?valueInputOption=USER_ENTERED`,{
+        method:'PUT',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({range:'A1',majorDimension:'ROWS',values:rows})
+      })
+      const requests=[
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:20},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:80},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:320},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:6,endIndex:9},properties:{pixelSize:100},fields:'pixelSize'}},
+        {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:7},cell:{userEnteredFormat:{backgroundColor:{red:0.1,green:0.1,blue:0.09},textFormat:{foregroundColor:{red:1,green:1,blue:1},bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+        {repeatCell:{range:{sheetId,startRowIndex:3,endRowIndex:4},cell:{userEnteredFormat:{textFormat:{bold:true,fontSize:12}}},fields:'userEnteredFormat(textFormat)'}},
+      ]
+      catRowIdxs.forEach(r=>{
+        requests.push({repeatCell:{range:{sheetId,startRowIndex:r+1,endRowIndex:r+2},cell:{userEnteredFormat:{backgroundColor:{red:0.91,green:0.91,blue:0.89},textFormat:{bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}})
+      })
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`,{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({requests})
+      })
+      window.open(`https://docs.google.com/spreadsheets/d/${sid}`,'_blank')
+      setSubiendo(false)
+    }catch(e){
+      setSubiendo(false)
+      alert('Error: '+e)
+    }
+  }
 
   async function cargar(){
     setLoading(true)
@@ -973,7 +1056,10 @@ function ListaPreciosPage({temporada,config}){
     <div className="page">
       <div className="page-header">
         <div><div className="page-title">🏷️ Lista de Precios</div><div className="page-sub">{temporada.nombre} · {articulos.length} artículos</div></div>
-        <button className="btn btn-primary" onClick={exportarExcel}>⬇️ Exportar Excel</button>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-outline" onClick={exportarExcel}>⬇️ Excel</button>
+          <button className="btn btn-primary" onClick={exportarSheets} disabled={subiendo}>{subiendo?'Creando...':'📊 Exportar a Sheets'}</button>
+        </div>
       </div>
       <input className="form-input" placeholder="🔍 Buscar código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
       {loading?<div className="loading">⏳ Cargando...</div>:(
