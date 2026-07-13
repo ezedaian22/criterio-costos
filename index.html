@@ -860,7 +860,7 @@ function ListaPreciosPage({temporada,config}){
         ['',`LISTA DE PRECIOS ${temporada.nombre.toUpperCase()}`],
         ['',new Date().toLocaleDateString('es-AR')],
         [],
-        ['','ARTÍCULO','DESCRIPCIÓN','','','','PRECIO','-10%','-17%'],
+        ['','ARTÍCULO','DESCRIPCIÓN','PRECIO','-10%','-17%'],
         []
       ]
       const catRowIdxs=[]
@@ -870,29 +870,37 @@ function ListaPreciosPage({temporada,config}){
         rows.push(['',cat.toUpperCase()])
         grupos2[cat].forEach(a=>{
           const pv=a.precio_venta_manual!=null?a.precio_venta_manual:(a.precios?.precioVenta||0)
-          rows.push(['',a.codigo,a.descripcion||'','','','',pv||'',Math.round((pv||0)*0.9)||'',Math.round((pv||0)*0.83)||''])
+          rows.push(['',a.codigo,a.descripcion||'',pv||0,Math.round((pv||0)*0.9)||0,Math.round((pv||0)*0.83)||0])
         })
       })
       const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
         method:'POST',
         headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
-        body:JSON.stringify({properties:{title:`Lista de Precios — ${temporada.nombre}`}})
+        body:JSON.stringify({properties:{title:`Lista de Precios — ${temporada.nombre} — ${new Date().toLocaleDateString('es-AR')}`}})
       })
       const sheet=await createRes.json()
       const sid=sheet.spreadsheetId
       const sheetId=sheet.sheets[0].properties.sheetId
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/A1?valueInputOption=USER_ENTERED`,{
+      const range=`A1:F${rows.length}`
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${range}?valueInputOption=USER_ENTERED`,{
         method:'PUT',
         headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
-        body:JSON.stringify({range:'A1',majorDimension:'ROWS',values:rows})
+        body:JSON.stringify({range,majorDimension:'ROWS',values:rows})
       })
       const requests=[
+        // Anchos de columna
         {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:20},fields:'pixelSize'}},
         {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:80},fields:'pixelSize'}},
         {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:320},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:6,endIndex:9},properties:{pixelSize:100},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:3,endIndex:6},properties:{pixelSize:110},fields:'pixelSize'}},
+        // Encabezado oscuro (fila 7, índice 6)
         {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:7},cell:{userEnteredFormat:{backgroundColor:{red:0.1,green:0.1,blue:0.09},textFormat:{foregroundColor:{red:1,green:1,blue:1},bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+        // Título bold
         {repeatCell:{range:{sheetId,startRowIndex:3,endRowIndex:4},cell:{userEnteredFormat:{textFormat:{bold:true,fontSize:12}}},fields:'userEnteredFormat(textFormat)'}},
+        // Formato $ en columnas D, E, F (índices 3,4,5)
+        {repeatCell:{range:{sheetId,startRowIndex:8,endRowIndex:rows.length,startColumnIndex:3,endColumnIndex:6},
+          cell:{userEnteredFormat:{numberFormat:{type:'CURRENCY',pattern:'"$"#,##0'}}},
+          fields:'userEnteredFormat(numberFormat)'}},
       ]
       catRowIdxs.forEach(r=>{
         requests.push({repeatCell:{range:{sheetId,startRowIndex:r+1,endRowIndex:r+2},cell:{userEnteredFormat:{backgroundColor:{red:0.91,green:0.91,blue:0.89},textFormat:{bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}})
