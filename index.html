@@ -259,6 +259,32 @@ function ArticulosPage({temporada,config}){
     setLoading(false)
   }
 
+function ArticulosPage({temporada,config}){
+  const[articulos,setArticulos]=useState([])
+  const[loading,setLoading]=useState(true)
+  const[busqueda,setBusqueda]=useState('')
+  const[modalNuevo,setModalNuevo]=useState(false)
+  const[seleccionado,setSeleccionado]=useState(null)
+  const[verIncompletos,setVerIncompletos]=useState(false)
+  const[modoSel,setModoSel]=useState(false)
+  const[selecc,setSelecc]=useState(new Set())
+  const[precioTipo,setPrecioTipo]=useState('precioVenta')
+  const[exportando,setExportando]=useState(false)
+  const gTokenRef=React.useRef(null)
+
+  useEffect(()=>{cargar()},[temporada.id])
+
+  async function cargar(){
+    setLoading(true)
+    const arts=await getArticulos(temporada.id)
+    const con=await Promise.all(arts.map(async a=>{
+      const det=await getArticuloDetalle(a.id)
+      return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
+    }))
+    setArticulos(con)
+    setLoading(false)
+  }
+
   const esIncompleto=a=>{
     const sinTelas=!a.detalle?.telas?.length
     const telaCero=a.detalle?.telas?.some(t=>!t.cantidad||t.cantidad===0)
@@ -267,13 +293,105 @@ function ArticulosPage({temporada,config}){
     return{incompleto:sinTelas||telaCero||sinConf||sinFoto,sinTelas,telaCero,sinConf,sinFoto}
   }
   const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
-
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
   const ultimoNumerico=React.useMemo(()=>{
     const guardado=localStorage.getItem(`ultimoCodigo_${temporada.id}`)
     return guardado?parseInt(guardado):null
   },[temporada.id])
+
+  function toggleSel(id,e){e.stopPropagation();setSelecc(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n})}
+  function toggleTodos(){setSelecc(selecc.size===filtrados.length?new Set():new Set(filtrados.map(a=>a.id)))}
+  function salirModo(){setModoSel(false);setSelecc(new Set())}
+
+  function getPrecio(a,tipo){
+    if(tipo==='precioVenta') return a.precio_venta_manual!=null?a.precio_venta_manual:(a.precios?.precioVenta||0)
+    const map={costo:'costo',greguera:'greguera',balbi:'balbi',sucati:'sucati'}
+    return a.precios?.[map[tipo]]||0
+  }
+
+  const PRECIO_LABELS={precioVenta:'Precio Venta',costo:'Costo',greguera:'G. Reguera',balbi:'Balbi',sucati:'Sucati'}
+
+  async function obtenerToken(){
+    return new Promise((resolve,reject)=>{
+      if(gTokenRef.current&&Date.now()<gTokenRef.current.expiry){resolve(gTokenRef.current.token);return}
+      const client=window.google.accounts.oauth2.initTokenClient({
+        client_id:'51651260606-i84b1cun6hv8d87m31n6husdvvvrc5hr.apps.googleusercontent.com',
+        scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+        callback:(resp)=>{
+          if(resp.error){reject(resp.error);return}
+          gTokenRef.current={token:resp.access_token,expiry:Date.now()+3500000}
+          resolve(resp.access_token)
+        }
+      })
+      client.requestAccessToken()
+    })
+  }
+
+  async function exportarSeleccion(){
+    const arts=articulos.filter(a=>selecc.has(a.id))
+    if(!arts.length)return
+    try{
+      setExportando(true)
+      const token=await obtenerToken()
+      const label=PRECIO_LABELS[precioTipo]
+      const fecha=new Date().toLocaleDateString('es-AR')
+      const rows=[
+        ['','LAVALLE COMERCIAL S.R.L.'],
+        ['',`Lista personalizada — ${temporada.nombre}`],
+        ['',`Precio: ${label} — ${fecha}`],
+        [],
+        ['','ARTÍCULO','DESCRIPCIÓN',label],
+        []
+      ]
+      // Agrupar por categoría
+      const grupos={}
+      arts.forEach(a=>{const cat=a.categoria||'Sin categoría';if(!grupos[cat])grupos[cat]=[];grupos[cat].push(a)})
+      const catRowIdxs=[]
+      Object.keys(grupos).forEach(cat=>{
+        rows.push([])
+        catRowIdxs.push(rows.length-1)
+        rows.push(['',cat.toUpperCase()])
+        grupos[cat].forEach(a=>{
+          const pv=Math.round(getPrecio(a,precioTipo))
+          rows.push(['',a.codigo,a.descripcion||'',pv||0])
+        })
+      })
+      const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({properties:{title:`Lista ${label} — ${temporada.nombre} — ${fecha}`}})
+      })
+      const sheet=await createRes.json()
+      const sid=sheet.spreadsheetId
+      const sheetId=sheet.sheets[0].properties.sheetId
+      const range=`A1:D${rows.length}`
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${range}?valueInputOption=USER_ENTERED`,{
+        method:'PUT',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({range,majorDimension:'ROWS',values:rows})
+      })
+      const requests=[
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:20},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:80},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:320},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:120},fields:'pixelSize'}},
+        {repeatCell:{range:{sheetId,startRowIndex:4,endRowIndex:5},cell:{userEnteredFormat:{backgroundColor:{red:0.1,green:0.1,blue:0.09},textFormat:{foregroundColor:{red:1,green:1,blue:1},bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+        {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:rows.length,startColumnIndex:3,endColumnIndex:4},cell:{userEnteredFormat:{numberFormat:{type:'CURRENCY',pattern:'"$"#,##0'}}},fields:'userEnteredFormat(numberFormat)'}},
+      ]
+      catRowIdxs.forEach(r=>{
+        requests.push({repeatCell:{range:{sheetId,startRowIndex:r+1,endRowIndex:r+2},cell:{userEnteredFormat:{backgroundColor:{red:0.91,green:0.91,blue:0.89},textFormat:{bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}})
+      })
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`,{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({requests})
+      })
+      window.open(`https://docs.google.com/spreadsheets/d/${sid}`,'_blank')
+      salirModo()
+      setExportando(false)
+    }catch(e){setExportando(false);alert('Error: '+e)}
+  }
 
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
 
@@ -287,7 +405,14 @@ function ArticulosPage({temporada,config}){
             {ultimoNumerico&&<span style={{marginLeft:10,color:'var(--azul)',fontWeight:700}}>· último código: {ultimoNumerico} → siguiente: {ultimoNumerico+1}</span>}
           </div>
         </div>
-        <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Nuevo artículo</button>
+        <div style={{display:'flex',gap:8}}>
+          {!modoSel
+            ?<><button className="btn btn-outline" onClick={()=>setModoSel(true)}>☑️ Seleccionar</button>
+               <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Nuevo artículo</button></>
+            :<><button className="btn btn-outline" onClick={salirModo}>✕ Cancelar</button>
+               <button className="btn btn-outline" onClick={toggleTodos} style={{fontSize:12}}>{selecc.size===filtrados.length?'Deseleccionar todos':'Seleccionar todos'}</button></>
+          }
+        </div>
       </div>
 
       {!loading&&incompletos.length>0&&(
@@ -339,6 +464,7 @@ function ArticulosPage({temporada,config}){
         <div className="card" style={{overflow:'hidden'}}>
           <table>
             <thead><tr>
+              {modoSel&&<th style={{width:36,textAlign:'center'}}><input type="checkbox" checked={selecc.size===filtrados.length&&filtrados.length>0} onChange={toggleTodos}/></th>}
               <th>Artículo</th>
               <th style={{textAlign:'right'}}>Costo</th>
               <th style={{textAlign:'right'}}>Precio Venta<div className="pct-tag">@{config?.margen_propio??config?.margen_greguera??100}%</div></th>
@@ -349,7 +475,8 @@ function ArticulosPage({temporada,config}){
             </tr></thead>
             <tbody>
               {filtrados.map(a=>(
-                <tr key={a.id} style={{cursor:'pointer'}} onClick={()=>setSeleccionado(a)}>
+                <tr key={a.id} style={{cursor:'pointer',background:selecc.has(a.id)?'var(--azul-bg)':undefined}} onClick={()=>modoSel?toggleSel(a.id,{stopPropagation:()=>{}}):setSeleccionado(a)}>
+                  {modoSel&&<td style={{textAlign:'center'}} onClick={e=>toggleSel(a.id,e)}><input type="checkbox" checked={selecc.has(a.id)} onChange={()=>{}}/></td>}
                   <td>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
                       {a.foto_url
@@ -374,6 +501,28 @@ function ArticulosPage({temporada,config}){
           </table>
         </div>
       )}
+
+      {modoSel&&selecc.size>0&&(
+        <div style={{position:'fixed',bottom:0,left:0,right:0,background:'var(--text1)',padding:'14px 20px',display:'flex',alignItems:'center',gap:12,zIndex:100,boxShadow:'0 -4px 20px rgba(0,0,0,0.2)'}}>
+          <span style={{color:'#fff',fontWeight:700,fontSize:15,flex:1}}>{selecc.size} artículo{selecc.size!==1?'s':''} seleccionado{selecc.size!==1?'s':''}</span>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <label style={{color:'#aaa',fontSize:13}}>Precio:</label>
+            <select value={precioTipo} onChange={e=>setPrecioTipo(e.target.value)}
+              style={{padding:'6px 10px',borderRadius:8,border:'none',fontSize:14,fontWeight:600,background:'#333',color:'#fff'}}>
+              <option value="precioVenta">Precio Venta</option>
+              <option value="costo">Costo</option>
+              <option value="greguera">G. Reguera</option>
+              <option value="balbi">Balbi</option>
+              <option value="sucati">Sucati</option>
+            </select>
+          </div>
+          <button onClick={exportarSeleccion} disabled={exportando}
+            style={{background:'#4ade80',color:'#000',border:'none',borderRadius:8,padding:'10px 18px',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+            {exportando?'Creando...':'📊 Exportar a Sheets'}
+          </button>
+        </div>
+      )}
+
       {modalNuevo&&<ModalNuevoArt temporada={temporada} articulos={articulos} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar()}}/>}
     </div>
   )
