@@ -245,27 +245,6 @@ function ArticulosPage({temporada,config}){
   const[modalNuevo,setModalNuevo]=useState(false)
   const[seleccionado,setSeleccionado]=useState(null)
   const[verIncompletos,setVerIncompletos]=useState(false)
-
-  useEffect(()=>{cargar()},[temporada.id])
-
-  async function cargar(){
-    setLoading(true)
-    const arts=await getArticulos(temporada.id)
-    const con=await Promise.all(arts.map(async a=>{
-      const det=await getArticuloDetalle(a.id)
-      return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
-    }))
-    setArticulos(con)
-    setLoading(false)
-  }
-
-function ArticulosPage({temporada,config}){
-  const[articulos,setArticulos]=useState([])
-  const[loading,setLoading]=useState(true)
-  const[busqueda,setBusqueda]=useState('')
-  const[modalNuevo,setModalNuevo]=useState(false)
-  const[seleccionado,setSeleccionado]=useState(null)
-  const[verIncompletos,setVerIncompletos]=useState(false)
   const[modoSel,setModoSel]=useState(false)
   const[selecc,setSelecc]=useState(new Set())
   const[precioTipo,setPrecioTipo]=useState('precioVenta')
