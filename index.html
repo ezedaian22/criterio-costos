@@ -468,7 +468,14 @@ function ArticulosPage({temporada,config}){
                       </div>
                     </div>
                   </td>
-                  <td style={{textAlign:'right'}}><span className="precio-costo">{fmt(a.precios?.costo)}</span></td>
+                  <td style={{textAlign:'right'}}>
+                    <span className="precio-costo">{fmt(a.precios?.costo)}</span>
+                    {a.detalle?.telas?.length>0&&(
+                      <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>
+                        {a.detalle.telas.map(t=>`${t.cantidad} ${t.precios_tela?.unidad||'kg'}`).join(' + ')}
+                      </div>
+                    )}
+                  </td>
                   <td style={{textAlign:'right'}}><span className="precio-venta">{fmt(a.precios?.precioVenta)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-greguera">{fmt(a.precios?.greguera)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-balbi">{fmt(a.precios?.balbi)}</span></td>
