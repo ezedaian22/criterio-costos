@@ -316,24 +316,23 @@ function ArticulosPage({temporada,config}){
       const label=PRECIO_LABELS[precioTipo]
       const fecha=new Date().toLocaleDateString('es-AR')
       const rows=[
-        ['','LAVALLE COMERCIAL S.R.L.'],
-        ['',`Lista personalizada — ${temporada.nombre}`],
-        ['',`Precio: ${label} — ${fecha}`],
+        ['LAVALLE COMERCIAL S.R.L.'],
+        [`Lista personalizada — ${temporada.nombre}`],
+        [`Precio: ${label} — ${fecha}`],
         [],
-        ['','ARTÍCULO','DESCRIPCIÓN',label],
+        ['ARTÍCULO','DESCRIPCIÓN',label],
         []
       ]
-      // Agrupar por categoría
       const grupos={}
       arts.forEach(a=>{const cat=a.categoria||'Sin categoría';if(!grupos[cat])grupos[cat]=[];grupos[cat].push(a)})
       const catRowIdxs=[]
       Object.keys(grupos).forEach(cat=>{
         rows.push([])
         catRowIdxs.push(rows.length-1)
-        rows.push(['',cat.toUpperCase()])
+        rows.push([cat.toUpperCase()])
         grupos[cat].forEach(a=>{
           const pv=Math.round(getPrecio(a,precioTipo))
-          rows.push(['',a.codigo,a.descripcion||'',pv||0])
+          rows.push([a.codigo,a.descripcion||'',pv||0])
         })
       })
       const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
@@ -344,19 +343,19 @@ function ArticulosPage({temporada,config}){
       const sheet=await createRes.json()
       const sid=sheet.spreadsheetId
       const sheetId=sheet.sheets[0].properties.sheetId
-      const range=`A1:D${rows.length}`
+      const range=`A1:C${rows.length}`
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${range}?valueInputOption=USER_ENTERED`,{
         method:'PUT',
         headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
         body:JSON.stringify({range,majorDimension:'ROWS',values:rows})
       })
       const requests=[
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:20},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:80},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:320},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:3,endIndex:4},properties:{pixelSize:120},fields:'pixelSize'}},
+        {updateSheetProperties:{properties:{sheetId,gridProperties:{columnCount:3}},fields:'gridProperties.columnCount'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:80},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:360},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:120},fields:'pixelSize'}},
         {repeatCell:{range:{sheetId,startRowIndex:4,endRowIndex:5},cell:{userEnteredFormat:{backgroundColor:{red:0.1,green:0.1,blue:0.09},textFormat:{foregroundColor:{red:1,green:1,blue:1},bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}},
-        {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:rows.length,startColumnIndex:3,endColumnIndex:4},cell:{userEnteredFormat:{numberFormat:{type:'CURRENCY',pattern:'"$"#,##0'}}},fields:'userEnteredFormat(numberFormat)'}},
+        {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:rows.length,startColumnIndex:2,endColumnIndex:3},cell:{userEnteredFormat:{numberFormat:{type:'CURRENCY',pattern:'"$"#,##0'}}},fields:'userEnteredFormat(numberFormat)'}},
       ]
       catRowIdxs.forEach(r=>{
         requests.push({repeatCell:{range:{sheetId,startRowIndex:r+1,endRowIndex:r+2},cell:{userEnteredFormat:{backgroundColor:{red:0.91,green:0.91,blue:0.89},textFormat:{bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}})
@@ -989,23 +988,23 @@ function ListaPreciosPage({temporada,config}){
       articulos.forEach(a=>{const cat=a.categoria||'Sin categoría';if(!grupos2[cat])grupos2[cat]=[];grupos2[cat].push(a)})
       const todas=[...[...CATEGORIAS,'Sin categoría'].filter(c=>grupos2[c]),...Object.keys(grupos2).filter(c=>![...CATEGORIAS,'Sin categoría'].includes(c))]
       const rows=[
-        ['','LAVALLE COMERCIAL S.R.L.'],
-        ['','Ecuador 425 - Cap. Fed.'],
-        ['','Tel / fax: 4865-0192'],
-        ['',`LISTA DE PRECIOS ${temporada.nombre.toUpperCase()}`],
-        ['',new Date().toLocaleDateString('es-AR')],
+        ['LAVALLE COMERCIAL S.R.L.'],
+        ['Ecuador 425 - Cap. Fed.'],
+        ['Tel / fax: 4865-0192'],
+        [`LISTA DE PRECIOS ${temporada.nombre.toUpperCase()}`],
+        [new Date().toLocaleDateString('es-AR')],
         [],
-        ['','ARTÍCULO','DESCRIPCIÓN','PRECIO','-10%','-17%'],
+        ['ARTÍCULO','DESCRIPCIÓN','PRECIO','-10%','-17%'],
         []
       ]
       const catRowIdxs=[]
       todas.forEach(cat=>{
         rows.push([])
         catRowIdxs.push(rows.length-1)
-        rows.push(['',cat.toUpperCase()])
+        rows.push([cat.toUpperCase()])
         grupos2[cat].forEach(a=>{
           const pv=a.precio_venta_manual!=null?a.precio_venta_manual:(a.precios?.precioVenta||0)
-          rows.push(['',a.codigo,a.descripcion||'',pv||0,Math.round((pv||0)*0.9)||0,Math.round((pv||0)*0.83)||0])
+          rows.push([a.codigo,a.descripcion||'',pv||0,Math.round((pv||0)*0.9)||0,Math.round((pv||0)*0.83)||0])
         })
       })
       const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
@@ -1016,26 +1015,29 @@ function ListaPreciosPage({temporada,config}){
       const sheet=await createRes.json()
       const sid=sheet.spreadsheetId
       const sheetId=sheet.sheets[0].properties.sheetId
-      const range=`A1:F${rows.length}`
+      const range=`A1:E${rows.length}`
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${range}?valueInputOption=USER_ENTERED`,{
         method:'PUT',
         headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
         body:JSON.stringify({range,majorDimension:'ROWS',values:rows})
       })
       const requests=[
+        // Restringir a 5 columnas para que imprima bien
+        {updateSheetProperties:{properties:{sheetId,gridProperties:{columnCount:5}},fields:'gridProperties.columnCount'}},
         // Anchos de columna
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:20},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:80},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:3},properties:{pixelSize:320},fields:'pixelSize'}},
-        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:3,endIndex:6},properties:{pixelSize:110},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:0,endIndex:1},properties:{pixelSize:80},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:1,endIndex:2},properties:{pixelSize:320},fields:'pixelSize'}},
+        {updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:2,endIndex:5},properties:{pixelSize:110},fields:'pixelSize'}},
         // Encabezado oscuro (fila 7, índice 6)
         {repeatCell:{range:{sheetId,startRowIndex:6,endRowIndex:7},cell:{userEnteredFormat:{backgroundColor:{red:0.1,green:0.1,blue:0.09},textFormat:{foregroundColor:{red:1,green:1,blue:1},bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}},
         // Título bold
         {repeatCell:{range:{sheetId,startRowIndex:3,endRowIndex:4},cell:{userEnteredFormat:{textFormat:{bold:true,fontSize:12}}},fields:'userEnteredFormat(textFormat)'}},
-        // Formato $ en columnas D, E, F (índices 3,4,5)
-        {repeatCell:{range:{sheetId,startRowIndex:8,endRowIndex:rows.length,startColumnIndex:3,endColumnIndex:6},
+        // Formato $ en columnas C, D, E (índices 2,3,4)
+        {repeatCell:{range:{sheetId,startRowIndex:8,endRowIndex:rows.length,startColumnIndex:2,endColumnIndex:5},
           cell:{userEnteredFormat:{numberFormat:{type:'CURRENCY',pattern:'"$"#,##0'}}},
           fields:'userEnteredFormat(numberFormat)'}},
+        // Repetir fila de encabezado en cada página impresa
+        {setBasicFilter:{filter:{range:{sheetId,startRowIndex:6,endRowIndex:7,startColumnIndex:0,endColumnIndex:5}}}},
       ]
       catRowIdxs.forEach(r=>{
         requests.push({repeatCell:{range:{sheetId,startRowIndex:r+1,endRowIndex:r+2},cell:{userEnteredFormat:{backgroundColor:{red:0.91,green:0.91,blue:0.89},textFormat:{bold:true}}},fields:'userEnteredFormat(backgroundColor,textFormat)'}})
