@@ -513,6 +513,40 @@ function ArticulosPage({temporada,config}){
   )
 }
 
+function TelaEditInline({tela,telasList,onSave,onCancel}){
+  const[tid,setTid]=useState(tela.precio_tela_id)
+  const[cant,setCant]=useState(String(tela.cantidad))
+  return(
+    <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
+      <select value={tid} onChange={e=>setTid(e.target.value)}
+        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160}}>
+        {telasList.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+      </select>
+      <input type="number" value={cant} onChange={e=>setCant(e.target.value)}
+        style={{width:70,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700}}/>
+      <button className="btn btn-sm btn-primary" onClick={()=>onSave(tid,cant)}>✓</button>
+      <button className="btn btn-sm btn-outline" onClick={onCancel}>✕</button>
+    </div>
+  )
+}
+
+function AvioEditInline({avio,aviosList,onSave,onCancel}){
+  const[aid,setAid]=useState(avio.precio_avio_id)
+  const[cant,setCant]=useState(String(avio.cantidad))
+  return(
+    <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
+      <select value={aid} onChange={e=>setAid(e.target.value)}
+        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160}}>
+        {aviosList.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+      </select>
+      <input type="number" value={cant} onChange={e=>setCant(e.target.value)}
+        style={{width:70,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700}}/>
+      <button className="btn btn-sm btn-primary" onClick={()=>onSave(aid,cant)}>✓</button>
+      <button className="btn btn-sm btn-outline" onClick={onCancel}>✕</button>
+    </div>
+  )
+}
+
 function ArticuloDetalle({art,temporada,config,onBack}){
   const[det,setDet]=useState({telas:[],avios:[],percha:[]})
   const[conf,setConf]=useState(art.confeccion||0)
@@ -533,6 +567,8 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   const[mAvio,setMAvio]=useState(false)
   const[mPercha,setMPercha]=useState(false)
   const[editandoCantidad,setEditandoCantidad]=useState(null)
+  const[telasList,setTelasList]=useState([])
+  const[aviosList,setAviosList]=useState([])
 
   useEffect(()=>{cargar()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
@@ -542,6 +578,16 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     const d=await getArticuloDetalle(art.id)
     setDet(d)
     setLoading(false)
+  }
+  async function cargarTelas(){
+    if(telasList.length)return
+    const{data}=await sb.schema('costos').from('precios_tela').select('*').eq('temporada_id',art.temporada_id)
+    setTelasList((data||[]).sort((a,b)=>a.nombre.localeCompare(b.nombre)))
+  }
+  async function cargarAvios(){
+    if(aviosList.length)return
+    const{data}=await sb.schema('costos').from('precios_avios').select('*').eq('temporada_id',art.temporada_id)
+    setAviosList((data||[]).sort((a,b)=>a.nombre.localeCompare(b.nombre)))
   }
   async function guardarConf(){
     const v=Number(confInput)||0
@@ -567,6 +613,16 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   async function guardarCantidad(tabla,id,valor){
     const v=Number(valor)||0
     await sb.schema('costos').from(tabla).update({cantidad:v}).eq('id',id)
+    setEditandoCantidad(null)
+    cargar()
+  }
+  async function guardarTela(id,precio_tela_id,cantidad){
+    await sb.schema('costos').from('articulo_telas').update({precio_tela_id,cantidad:Number(cantidad)||0}).eq('id',id)
+    setEditandoCantidad(null)
+    cargar()
+  }
+  async function guardarAvio(id,precio_avio_id,cantidad){
+    await sb.schema('costos').from('articulo_avios').update({precio_avio_id,cantidad:Number(cantidad)||0}).eq('id',id)
     setEditandoCantidad(null)
     cargar()
   }
@@ -699,11 +755,14 @@ function ArticuloDetalle({art,temporada,config,onBack}){
                       <div style={{fontSize:11,color:'var(--text2)'}}>{t.cantidad} {t.precios_tela?.unidad||'kg'} × {fmt(t.precios_tela?.precio)}</div>}
                   </div>
                   {editandoCantidad?.tabla==='articulo_telas'&&editandoCantidad?.id===t.id?(
-                    <EditInline valor={t.cantidad} onSave={v=>guardarCantidad('articulo_telas',t.id,v)} onCancel={()=>setEditandoCantidad(null)}/>
+                    <TelaEditInline
+                      tela={t} telasList={telasList}
+                      onSave={(tid,cant)=>guardarTela(t.id,tid,cant)}
+                      onCancel={()=>setEditandoCantidad(null)}/>
                   ):(
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <b style={{fontSize:13}}>{fmt(t.cantidad*(t.precios_tela?.precio||0))}</b>
-                      <button className="btn-icon" onClick={()=>setEditandoCantidad({tabla:'articulo_telas',id:t.id})}>✏️</button>
+                      <button className="btn-icon" onClick={()=>{cargarTelas();setEditandoCantidad({tabla:'articulo_telas',id:t.id})}}>✏️</button>
                       <button className="btn-icon" onClick={()=>delTela(t.id)}>🗑</button>
                     </div>
                   )}
@@ -726,11 +785,14 @@ function ArticuloDetalle({art,temporada,config,onBack}){
                       <div style={{fontSize:11,color:'var(--text2)'}}>{a.cantidad} × {fmt(a.precios_avios?.precio)}</div>}
                   </div>
                   {editandoCantidad?.tabla==='articulo_avios'&&editandoCantidad?.id===a.id?(
-                    <EditInline valor={a.cantidad} onSave={v=>guardarCantidad('articulo_avios',a.id,v)} onCancel={()=>setEditandoCantidad(null)}/>
+                    <AvioEditInline
+                      avio={a} aviosList={aviosList}
+                      onSave={(aid,cant)=>guardarAvio(a.id,aid,cant)}
+                      onCancel={()=>setEditandoCantidad(null)}/>
                   ):(
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <b style={{fontSize:13}}>{fmt(a.cantidad*(a.precios_avios?.precio||0))}</b>
-                      <button className="btn-icon" onClick={()=>setEditandoCantidad({tabla:'articulo_avios',id:a.id})}>✏️</button>
+                      <button className="btn-icon" onClick={()=>{cargarAvios();setEditandoCantidad({tabla:'articulo_avios',id:a.id})}}>✏️</button>
                       <button className="btn-icon" onClick={()=>delAvio(a.id)}>🗑</button>
                     </div>
                   )}
