@@ -583,11 +583,42 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     onBack()
   }
 
+  async function duplicarArticulo(){
+    const nuevoCodigo=prompt(`Duplicar artículo ${codigo}\n\nIngresá el código para el nuevo artículo:`)
+    if(!nuevoCodigo||!nuevoCodigo.trim())return
+    const nc=nuevoCodigo.trim()
+    // Verificar que no exista
+    const{data:existe}=await sb.schema('costos').from('articulos').select('id').eq('temporada_id',art.temporada_id).eq('codigo',nc)
+    if(existe&&existe.length>0){alert(`El código ${nc} ya existe en esta temporada.`);return}
+    // Crear nuevo artículo
+    const{data:nuevo}=await sb.schema('costos').from('articulos').insert({
+      temporada_id:art.temporada_id,codigo:nc,descripcion:art.descripcion,
+      confeccion:art.confeccion,categoria:art.categoria,notas_taller:art.notas_taller
+    }).select().single()
+    if(!nuevo){alert('Error al crear el artículo');return}
+    // Copiar telas, avíos y percha
+    const[{data:telas},{data:avios},{data:percha}]=await Promise.all([
+      sb.schema('costos').from('articulo_telas').select('precio_tela_id,cantidad').eq('articulo_id',art.id),
+      sb.schema('costos').from('articulo_avios').select('precio_avio_id,cantidad').eq('articulo_id',art.id),
+      sb.schema('costos').from('articulo_percha').select('precio_percha_id,cantidad').eq('articulo_id',art.id),
+    ])
+    await Promise.all([
+      ...(telas||[]).map(t=>sb.schema('costos').from('articulo_telas').insert({articulo_id:nuevo.id,precio_tela_id:t.precio_tela_id,cantidad:t.cantidad})),
+      ...(avios||[]).map(a=>sb.schema('costos').from('articulo_avios').insert({articulo_id:nuevo.id,precio_avio_id:a.precio_avio_id,cantidad:a.cantidad})),
+      ...(percha||[]).map(p=>sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:p.precio_percha_id,cantidad:p.cantidad})),
+    ])
+    alert(`✅ Artículo ${nc} creado con todo el contenido de ${codigo}. Buscalo en la lista para modificar lo que necesites.`)
+    onBack()
+  }
+
   return(
     <div className="page" style={{padding:'14px 16px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
         <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,color:'var(--text2)',background:'none',border:'none',cursor:'pointer',fontSize:14}}>← Volver</button>
-        <button onClick={eliminarArticulo} style={{display:'flex',alignItems:'center',gap:6,color:'var(--rojo)',background:'none',border:'1.5px solid var(--rojo)',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:13,fontWeight:600}}>🗑 Eliminar artículo</button>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={duplicarArticulo} style={{display:'flex',alignItems:'center',gap:6,color:'var(--azul)',background:'none',border:'1.5px solid var(--azul)',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:13,fontWeight:600}}>⧉ Duplicar</button>
+          <button onClick={eliminarArticulo} style={{display:'flex',alignItems:'center',gap:6,color:'var(--rojo)',background:'none',border:'1.5px solid var(--rojo)',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:13,fontWeight:600}}>🗑 Eliminar</button>
+        </div>
       </div>
 
       <div style={{display:'flex',gap:14,marginBottom:14,alignItems:'flex-start'}}>
