@@ -256,10 +256,10 @@ function ArticulosPage({temporada,config,todasTemporadas}){
 
   useEffect(()=>{cargar()},[temporada.id])
   useEffect(()=>{
-    if(!busqueda||!busquedaGlobal){setResultadosOtros([]);return}
+    if(!busqueda){setResultadosOtros([]);return}
     const timer=setTimeout(()=>buscarEnOtras(),400)
     return()=>clearTimeout(timer)
-  },[busqueda,busquedaGlobal])
+  },[busqueda])
 
   async function cargar(){
     setLoading(true)
@@ -458,14 +458,8 @@ function ArticulosPage({temporada,config,todasTemporadas}){
 
       <div style={{marginBottom:16}}>
         <input className="form-input" placeholder="🔍 Buscar por código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6}}>
-          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:13,color:'var(--text2)'}}>
-            <input type="checkbox" checked={busquedaGlobal} onChange={e=>setBusquedaGlobal(e.target.checked)}/>
-            Buscar en todas las temporadas
-          </label>
-          {buscandoGlobal&&<span style={{fontSize:12,color:'var(--text3)'}}>buscando...</span>}
-        </div>
-        {busquedaGlobal&&resultadosOtros.length>0&&(
+        {buscandoGlobal&&<div style={{fontSize:12,color:'var(--text3)',marginTop:4}}>Buscando en todas las temporadas...</div>}
+        {resultadosOtros.length>0&&(
           <div style={{marginTop:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}}>
             {resultadosOtros.map(({temporada:t,articulos:arts})=>(
               <div key={t.id}>
@@ -473,7 +467,7 @@ function ArticulosPage({temporada,config,todasTemporadas}){
                   📅 {t.nombre} — {arts.length} resultado{arts.length!==1?'s':''}
                 </div>
                 {arts.map(a=>(
-                  <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#fff',cursor:'default'}}>
+                  <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#fff'}}>
                     <div>
                       <span style={{fontWeight:700,marginRight:8}}>{a.codigo}</span>
                       <span style={{fontSize:13,color:'var(--text2)'}}>{a.descripcion}</span>
@@ -484,9 +478,6 @@ function ArticulosPage({temporada,config,todasTemporadas}){
               </div>
             ))}
           </div>
-        )}
-        {busquedaGlobal&&busqueda&&!buscandoGlobal&&resultadosOtros.length===0&&(
-          <div style={{marginTop:8,fontSize:12,color:'var(--text3)'}}>Sin resultados en otras temporadas</div>
         )}
       </div>
       {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
