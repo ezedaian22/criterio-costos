@@ -227,7 +227,7 @@ function App(){
         </div>
       </nav>
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
-        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config}/>
+        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
         :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
@@ -238,10 +238,13 @@ function App(){
   )
 }
 
-function ArticulosPage({temporada,config}){
+function ArticulosPage({temporada,config,todasTemporadas}){
   const[articulos,setArticulos]=useState([])
   const[loading,setLoading]=useState(true)
   const[busqueda,setBusqueda]=useState('')
+  const[busquedaGlobal,setBusquedaGlobal]=useState(false)
+  const[resultadosOtros,setResultadosOtros]=useState([])
+  const[buscandoGlobal,setBuscandoGlobal]=useState(false)
   const[modalNuevo,setModalNuevo]=useState(false)
   const[seleccionado,setSeleccionado]=useState(null)
   const[verIncompletos,setVerIncompletos]=useState(false)
@@ -252,6 +255,11 @@ function ArticulosPage({temporada,config}){
   const gTokenRef=React.useRef(null)
 
   useEffect(()=>{cargar()},[temporada.id])
+  useEffect(()=>{
+    if(!busqueda||!busquedaGlobal){setResultadosOtros([]);return}
+    const timer=setTimeout(()=>buscarEnOtras(),400)
+    return()=>clearTimeout(timer)
+  },[busqueda,busquedaGlobal])
 
   async function cargar(){
     setLoading(true)
@@ -262,6 +270,23 @@ function ArticulosPage({temporada,config}){
     }))
     setArticulos(con)
     setLoading(false)
+  }
+
+  async function buscarEnOtras(){
+    if(!busqueda)return
+    setBuscandoGlobal(true)
+    const otras=(todasTemporadas||[]).filter(t=>t.id!==temporada.id)
+    const resultados=[]
+    for(const temp of otras){
+      const{data:arts}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',temp.id)
+      const filtrados=(arts||[]).filter(a=>
+        a.codigo.toLowerCase().includes(busqueda.toLowerCase())||
+        (a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase())
+      )
+      if(filtrados.length)resultados.push({temporada:temp,articulos:filtrados})
+    }
+    setResultadosOtros(resultados)
+    setBuscandoGlobal(false)
   }
 
   const esIncompleto=a=>{
@@ -431,7 +456,39 @@ function ArticulosPage({temporada,config}){
         </div>
       )}
 
-      <input className="form-input" placeholder="🔍 Buscar por código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
+      <div style={{marginBottom:16}}>
+        <input className="form-input" placeholder="🔍 Buscar por código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginTop:6}}>
+          <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:13,color:'var(--text2)'}}>
+            <input type="checkbox" checked={busquedaGlobal} onChange={e=>setBusquedaGlobal(e.target.checked)}/>
+            Buscar en todas las temporadas
+          </label>
+          {buscandoGlobal&&<span style={{fontSize:12,color:'var(--text3)'}}>buscando...</span>}
+        </div>
+        {busquedaGlobal&&resultadosOtros.length>0&&(
+          <div style={{marginTop:10,border:'1px solid var(--border)',borderRadius:10,overflow:'hidden'}}>
+            {resultadosOtros.map(({temporada:t,articulos:arts})=>(
+              <div key={t.id}>
+                <div style={{padding:'8px 12px',background:'var(--surface2)',fontSize:12,fontWeight:700,color:'var(--text2)',borderBottom:'1px solid var(--border)'}}>
+                  📅 {t.nombre} — {arts.length} resultado{arts.length!==1?'s':''}
+                </div>
+                {arts.map(a=>(
+                  <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#fff',cursor:'default'}}>
+                    <div>
+                      <span style={{fontWeight:700,marginRight:8}}>{a.codigo}</span>
+                      <span style={{fontSize:13,color:'var(--text2)'}}>{a.descripcion}</span>
+                    </div>
+                    <span style={{fontSize:11,background:'var(--azul-bg)',color:'var(--azul)',padding:'2px 8px',borderRadius:10,fontWeight:600}}>{t.nombre}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        {busquedaGlobal&&busqueda&&!buscandoGlobal&&resultadosOtros.length===0&&(
+          <div style={{marginTop:8,fontSize:12,color:'var(--text3)'}}>Sin resultados en otras temporadas</div>
+        )}
+      </div>
       {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
         <div className="empty">
           <div className="empty-icon">📦</div>
@@ -709,8 +766,10 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   const[editandoCantidad,setEditandoCantidad]=useState(null)
   const[telasList,setTelasList]=useState([])
   const[aviosList,setAviosList]=useState([])
+  const[otrasTemps,setOtrasTemps]=useState([]) // {id,nombre,tieneArticulo}
+  const[compartiendo,setCompartiendo]=useState(false)
 
-  useEffect(()=>{cargar()},[art.id])
+  useEffect(()=>{cargar();verificarOtrasTemps()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
 
   async function cargar(){
@@ -718,6 +777,45 @@ function ArticuloDetalle({art,temporada,config,onBack}){
     const d=await getArticuloDetalle(art.id)
     setDet(d)
     setLoading(false)
+  }
+  async function verificarOtrasTemps(){
+    const{data:temps}=await sb.schema('costos').from('temporadas').select('*')
+    const otras=(temps||[]).filter(t=>t.id!==art.temporada_id)
+    const veri=await Promise.all(otras.map(async t=>{
+      const{data}=await sb.schema('costos').from('articulos').select('id').eq('temporada_id',t.id).eq('codigo',art.codigo)
+      return{...t,tieneArticulo:!!(data&&data.length)}
+    }))
+    setOtrasTemps(veri)
+  }
+  async function compartirCon(tempId,tempNombre){
+    if(!confirm(`¿Compartir "${codigo}" con ${tempNombre}?\nSe copiará con las mismas telas, avíos y confección.`))return
+    setCompartiendo(true)
+    const{data:nuevo}=await sb.schema('costos').from('articulos').insert({
+      temporada_id:tempId,codigo:art.codigo,descripcion:art.descripcion,
+      confeccion:art.confeccion,categoria:art.categoria,notas_taller:art.notas_taller
+    }).select().single()
+    if(!nuevo){setCompartiendo(false);alert('Error al crear');return}
+    // Copiar telas por nombre
+    for(const t of det.telas){
+      const nombre=t.precios_tela?.nombre;if(!nombre)continue
+      const{data:p}=await sb.schema('costos').from('precios_tela').select('id').eq('temporada_id',tempId).ilike('nombre',nombre).limit(1)
+      if(p&&p.length) await sb.schema('costos').from('articulo_telas').insert({articulo_id:nuevo.id,precio_tela_id:p[0].id,cantidad:t.cantidad})
+    }
+    // Copiar avíos por nombre
+    for(const a of det.avios){
+      const nombre=a.precios_avios?.nombre;if(!nombre)continue
+      const{data:p}=await sb.schema('costos').from('precios_avios').select('id').eq('temporada_id',tempId).ilike('nombre',nombre).limit(1)
+      if(p&&p.length) await sb.schema('costos').from('articulo_avios').insert({articulo_id:nuevo.id,precio_avio_id:p[0].id,cantidad:a.cantidad})
+    }
+    // Copiar percha por nombre
+    for(const p of det.percha){
+      const nombre=p.precios_perchas?.nombre;if(!nombre)continue
+      const{data:pr}=await sb.schema('costos').from('precios_perchas').select('id').eq('temporada_id',tempId).ilike('nombre',nombre).limit(1)
+      if(pr&&pr.length) await sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:pr[0].id,cantidad:1})
+    }
+    setCompartiendo(false)
+    verificarOtrasTemps()
+    alert(`✅ Artículo ${codigo} copiado a ${tempNombre}`)
   }
   async function cargarTelas(){
     if(telasList.length)return
@@ -865,7 +963,17 @@ function ArticuloDetalle({art,temporada,config,onBack}){
               <button className="btn-icon" onClick={()=>setEditTaller(true)}>✏️</button>
             </div>
           )}
-          <span className="tag tag-azul">{temporada.nombre}</span>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:6}}>
+            <span className="tag tag-azul">{temporada.nombre}</span>
+            {otrasTemps.map(t=>(
+              t.tieneArticulo
+                ?<span key={t.id} style={{fontSize:11,background:'#f0fdf4',color:'#16a34a',padding:'3px 10px',borderRadius:20,fontWeight:600,border:'1px solid #bbf7d0'}}>✓ También en {t.nombre}</span>
+                :<button key={t.id} onClick={()=>compartirCon(t.id,t.nombre)} disabled={compartiendo}
+                  style={{fontSize:11,background:'#fff7ed',color:'#ea580c',padding:'3px 10px',borderRadius:20,fontWeight:600,border:'1px solid #fed7aa',cursor:'pointer'}}>
+                  {compartiendo?'Copiando...':'↗ Compartir con '+t.nombre}
+                </button>
+            ))}
+          </div>
         </div>
       </div>
 
