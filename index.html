@@ -678,7 +678,7 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
         <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
 
           {/* Telas */}
-          <div className="card" style={{overflow:'hidden'}}>
+          <div className="card" style={{overflow:'visible',flexShrink:0}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🧵 Telas</div>
             {telas.map((t,i)=>(
               <div key={t.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center',flexShrink:0,minHeight:60}}>
@@ -700,7 +700,7 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
           </div>
 
           {/* Avíos */}
-          <div className="card" style={{overflow:'hidden'}}>
+          <div className="card" style={{overflow:'visible',flexShrink:0}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🪡 Avíos</div>
             {avios.map((a,i)=>(
               <div key={a.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center',flexShrink:0,minHeight:60}}>
@@ -722,7 +722,7 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
           </div>
 
           {/* Producción */}
-          <div className="card" style={{overflow:'hidden'}}>
+          <div className="card" style={{overflow:'visible',flexShrink:0}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>✂️ Producción</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'12px 14px'}}>
               <div>
