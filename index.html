@@ -137,8 +137,8 @@ function App(){
     setMTemp(false)
   }
 
-  async function crearTemporada(nombre){
-    await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
+  async function crearTemporada(nombre,yaCreada){
+    if(!yaCreada) await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
     const ts=await getTemporadas()
     setTemporadas(ts)
     const nueva=ts.find(t=>t.nombre===nombre)
@@ -173,7 +173,7 @@ function App(){
             <span>☀️</span><div>Verano</div>
           </button>
         </div>
-        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
+        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
       </div>
     )
   }
@@ -191,13 +191,13 @@ function App(){
           ))}
           <button className="btn btn-primary" style={{minHeight:48}} onClick={()=>setMTemp(true)}>+ Nueva temporada</button>
         </div>
-        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
+        {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
       </div>
     )
   }
 
-  const tabs=['articulos','lista','telas','avios','perchas','config']
-  const tabLabel={articulos:'📦 Artículos',lista:'🏷️ Lista',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',config:'⚙️ Config'}
+  const tabs=['articulos','lista','telas','avios','perchas','comparar','config']
+  const tabLabel={articulos:'📦 Artículos',lista:'🏷️ Lista',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',comparar:'📊 Comparar',config:'⚙️ Config'}
 
   return(
     <div>
@@ -223,7 +223,7 @@ function App(){
               </div>
             </div>
           )}
-          {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
+          {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
         </div>
       </nav>
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
@@ -232,6 +232,7 @@ function App(){
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
         :tab==='perchas'?<PreciosPage tipo="precios_perchas" titulo="Precios de Perchas" icono="🧲" temporada={temporada}/>
+        :tab==='comparar'?<ComparadorPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
         :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}}/>
       }
     </div>
@@ -1334,6 +1335,19 @@ function ListaPreciosPage({temporada,config}){
 
   async function exportarSheets(){
     try{
+      // Verificar precios pendientes
+      const[{data:tp},{data:ap}]=await Promise.all([
+        sb.schema('costos').from('precios_tela').select('id').eq('temporada_id',temporada.id).eq('actualizado',false),
+        sb.schema('costos').from('precios_avios').select('id').eq('temporada_id',temporada.id).eq('actualizado',false),
+      ])
+      const pendTelas=(tp||[]).length, pendAvios=(ap||[]).length
+      if(pendTelas+pendAvios>0){
+        const msg=`⚠️ Hay precios sin actualizar en esta temporada:\n\n`+
+          (pendTelas?`• ${pendTelas} tela${pendTelas!==1?'s':''}\n`:'')+
+          (pendAvios?`• ${pendAvios} avío${pendAvios!==1?'s':''}\n`:'')+
+          `\nLos costos pueden estar desactualizados. ¿Exportar igual?`
+        if(!confirm(msg))return
+      }
       setSubiendo(true)
       const token=await obtenerToken()
       const grupos2={}
@@ -1634,45 +1648,187 @@ function ListaPreciosPage({temporada,config}){
   )
 }
 
+function ComparadorPage({temporada,config,todasTemporadas}){
+  const[compararCon,setCompararCon]=useState('')
+  const[datos,setDatos]=useState([])
+  const[loading,setLoading]=useState(false)
+  const[busqueda,setBusqueda]=useState('')
+  const candidatas=(todasTemporadas||[]).filter(t=>t.id!==temporada.id&&detectarEstacion(t.nombre)===detectarEstacion(temporada.nombre))
+
+  async function cargarComparacion(otraId){
+    if(!otraId){setDatos([]);return}
+    setLoading(true)
+    const{data:cfgOtra}=await sb.schema('costos').from('config').select('*').eq('temporada_id',otraId).limit(1)
+    const configOtra=cfgOtra?.[0]||config
+    const cargarTemp=async(tempId,cfg)=>{
+      const{data:arts}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',tempId)
+      const ids=(arts||[]).map(a=>a.id)
+      if(!ids.length)return{}
+      const[{data:t},{data:a},{data:p}]=await Promise.all([
+        sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
+        sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
+        sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+      ])
+      const mT={},mA={},mP={}
+      ;(t||[]).forEach(x=>{(mT[x.articulo_id]=mT[x.articulo_id]||[]).push(x)})
+      ;(a||[]).forEach(x=>{(mA[x.articulo_id]=mA[x.articulo_id]||[]).push(x)})
+      ;(p||[]).forEach(x=>{(mP[x.articulo_id]=mP[x.articulo_id]||[]).push(x)})
+      const out={}
+      ;(arts||[]).forEach(art=>{
+        const det={telas:mT[art.id]||[],avios:mA[art.id]||[],percha:mP[art.id]||[]}
+        out[art.codigo]={...art,precios:calcPrecios(det,art.confeccion,cfg)}
+      })
+      return out
+    }
+    const[actual,otra]=await Promise.all([cargarTemp(temporada.id,config),cargarTemp(otraId,configOtra)])
+    const codigos=[...new Set([...Object.keys(actual),...Object.keys(otra)])].sort()
+    const filas=codigos.map(cod=>{
+      const a=actual[cod],o=otra[cod]
+      const costoA=a?.precios?.costo||null, costoO=o?.precios?.costo||null
+      const varia=(costoA&&costoO)?((costoA-costoO)/costoO*100):null
+      return{codigo:cod,descripcion:a?.descripcion||o?.descripcion||'',costoActual:costoA,costoOtra:costoO,varia}
+    })
+    setDatos(filas)
+    setLoading(false)
+  }
+
+  const nombreOtra=candidatas.find(t=>t.id===compararCon)?.nombre||''
+  const filtrados=datos.filter(d=>!busqueda||d.codigo.toLowerCase().includes(busqueda.toLowerCase())||d.descripcion.toLowerCase().includes(busqueda.toLowerCase()))
+
+  return(
+    <div className="page">
+      <div className="page-header">
+        <div><div className="page-title">📊 Comparar temporadas</div><div className="page-sub">{temporada.nombre}</div></div>
+      </div>
+      {candidatas.length===0?(
+        <div className="empty"><div className="empty-title">No hay otra temporada de la misma estación para comparar</div></div>
+      ):(
+        <>
+          <div style={{display:'flex',gap:10,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+            <label style={{fontSize:14,color:'var(--text2)'}}>Comparar con:</label>
+            <select className="form-input" style={{width:220}} value={compararCon} onChange={e=>{setCompararCon(e.target.value);cargarComparacion(e.target.value)}}>
+              <option value="">Elegir temporada...</option>
+              {candidatas.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+            </select>
+          </div>
+          {compararCon&&<input className="form-input" placeholder="🔍 Buscar código o descripción..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>}
+          {loading?<div className="loading">⏳ Calculando...</div>:datos.length>0&&(
+            <div className="card" style={{overflow:'hidden'}}>
+              <table>
+                <thead><tr>
+                  <th>Artículo</th>
+                  <th style={{textAlign:'right'}}>{nombreOtra}</th>
+                  <th style={{textAlign:'right'}}>{temporada.nombre}</th>
+                  <th style={{textAlign:'right'}}>Variación</th>
+                </tr></thead>
+                <tbody>
+                  {filtrados.map(d=>(
+                    <tr key={d.codigo}>
+                      <td><div style={{fontWeight:700}}>{d.codigo}</div><div style={{fontSize:12,color:'var(--text2)'}}>{d.descripcion}</div></td>
+                      <td style={{textAlign:'right',color:'var(--text2)'}}>{d.costoOtra!=null?fmt(d.costoOtra):<span style={{color:'var(--text3)',fontSize:12}}>no existe</span>}</td>
+                      <td style={{textAlign:'right',fontWeight:700}}>{d.costoActual!=null?fmt(d.costoActual):<span style={{color:'var(--text3)',fontSize:12}}>no existe</span>}</td>
+                      <td style={{textAlign:'right'}}>
+                        {d.varia!==null
+                          ?<span style={{fontWeight:800,color:d.varia>0?'#dc2626':d.varia<0?'#16a34a':'var(--text3)'}}>
+                            {d.varia>0?'+':''}{d.varia.toFixed(1)}%
+                          </span>
+                          :<span style={{color:'var(--text3)'}}>—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function PreciosPage({tipo,titulo,icono,temporada}){
   const[items,setItems]=useState([])
   const[loading,setLoading]=useState(true)
   const[editando,setEditando]=useState(null)
   const[modalNuevo,setModalNuevo]=useState(false)
   const[busqueda,setBusqueda]=useState('')
+  const[soloPendientes,setSoloPendientes]=useState(false)
   useEffect(()=>{cargar()},[temporada.id,tipo])
   async function cargar(){setLoading(true);const d=await getPrecios(tipo,temporada.id);setItems(d.sort((a,b)=>a.nombre.localeCompare(b.nombre)));setLoading(false)}
-  async function guardarEdit(item,precio){await sb.schema('costos').from(tipo).update({precio:Number(precio)}).eq('id',item.id);setEditando(null);cargar()}
+  async function guardarEdit(item,precio){
+    await sb.schema('costos').from(tipo).update({precio:Number(precio),actualizado:true}).eq('id',item.id)
+    setEditando(null);cargar()
+  }
+  async function marcarOk(item){
+    await sb.schema('costos').from(tipo).update({actualizado:true}).eq('id',item.id)
+    cargar()
+  }
   async function del(id){if(!confirm('¿Eliminar?'))return;await sb.schema('costos').from(tipo).delete().eq('id',id);cargar()}
-  const filtrados=items.filter(i=>!busqueda||i.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+
+  const pendientes=items.filter(i=>i.actualizado===false)
+  let filtrados=items.filter(i=>!busqueda||i.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+  if(soloPendientes)filtrados=filtrados.filter(i=>i.actualizado===false)
+
   return(
     <div className="page">
       <div className="page-header">
         <div><div className="page-title">{icono} {titulo}</div><div className="page-sub">{temporada.nombre} · {items.length} ítems</div></div>
-        <button className="btn btn-primary" onClick={()=>setModalNuevo(true)}>+ Agregar</button>
+        <button className="btn btn-primary" onClick={()=>setModalNuevo(true)} disabled={temporada.cerrada}>+ Agregar</button>
       </div>
+
+      {pendientes.length>0&&(
+        <div style={{marginBottom:14,padding:'12px 16px',background:'#fffbeb',border:'1.5px solid #fbbf24',borderRadius:10,display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,color:'#92400e'}}>⚠️ {pendientes.length} de {items.length} pendientes de actualizar</div>
+            <div style={{fontSize:12,color:'#a16207',marginTop:2}}>
+              {items.length-pendientes.length} actualizado{items.length-pendientes.length!==1?'s':''} · Los precios muestran el valor de la temporada anterior
+            </div>
+          </div>
+          <button onClick={()=>setSoloPendientes(v=>!v)} className="btn btn-sm btn-outline" style={{borderColor:'#fbbf24',color:'#92400e'}}>
+            {soloPendientes?'Ver todos':'Ver solo pendientes'}
+          </button>
+        </div>
+      )}
+
       <input className="form-input" placeholder="🔍 Buscar por nombre..." value={busqueda} onChange={e=>setBusqueda(e.target.value)} style={{marginBottom:16}}/>
       {loading?<div className="loading">⏳ Cargando...</div>:filtrados.length===0?(
-        <div className="empty"><div className="empty-icon">{icono}</div><div className="empty-title">{busqueda?'Sin resultados':'Sin ítems todavía'}</div></div>
+        <div className="empty"><div className="empty-icon">{icono}</div><div className="empty-title">{busqueda||soloPendientes?'Sin resultados':'Sin ítems todavía'}</div></div>
       ):(
         <div className="card" style={{overflow:'hidden'}}>
-          {filtrados.map(item=>(
-            <div key={item.id} className="precio-item">
+          {filtrados.map(item=>{
+            const pend=item.actualizado===false
+            const ant=item.precio_anterior
+            const varia=ant&&ant>0?((item.precio-ant)/ant*100):null
+            return(
+            <div key={item.id} className="precio-item" style={{background:pend?'#fffdf5':undefined}}>
               <div style={{flex:1}}>
-                <div style={{fontWeight:600,fontSize:14}}>{item.nombre}</div>
+                <div style={{fontWeight:600,fontSize:14,display:'flex',alignItems:'center',gap:6}}>
+                  {pend?<span style={{color:'#d97706',fontSize:12}}>⏳</span>:<span style={{color:'#16a34a',fontSize:13}}>✓</span>}
+                  {item.nombre}
+                </div>
                 {item.unidad&&<div style={{fontSize:11,color:'var(--text3)'}}>por {item.unidad}</div>}
+                {ant!=null&&ant!==item.precio&&(
+                  <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>
+                    antes: {fmt(ant)}
+                    {varia!==null&&<span style={{marginLeft:6,fontWeight:700,color:varia>0?'#dc2626':'#16a34a'}}>
+                      {varia>0?'+':''}{varia.toFixed(0)}%
+                    </span>}
+                  </div>
+                )}
               </div>
               {editando?.id===item.id?(
                 <EditInline valor={item.precio} onSave={v=>guardarEdit(item,v)} onCancel={()=>setEditando(null)}/>
               ):(
                 <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <b style={{fontSize:15}}>{fmt(item.precio)}</b>
-                  <button className="btn-icon" onClick={()=>setEditando(item)}>✏️</button>
-                  <button className="btn-icon" onClick={()=>del(item.id)}>🗑</button>
+                  <b style={{fontSize:15,color:pend?'var(--text2)':undefined}}>{fmt(item.precio)}</b>
+                  {pend&&<button onClick={()=>marcarOk(item)} title="Marcar como revisado sin cambiar el precio"
+                    style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:6,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'pointer'}}>✓ OK</button>}
+                  {!temporada.cerrada&&<button className="btn-icon" onClick={()=>setEditando(item)}>✏️</button>}
+                  {!temporada.cerrada&&<button className="btn-icon" onClick={()=>del(item.id)}>🗑</button>}
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
       )}
       {modalNuevo&&<ModalNuevoPrecio tipo={tipo} titulo={titulo} tempId={temporada.id} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar()}}/>}
@@ -1732,6 +1888,10 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
   const[mTemp,setMTemp]=useState(false)
+  const[pctConf,setPctConf]=useState('')
+  const[aplicandoConf,setAplicandoConf]=useState(false)
+  const[cerrada,setCerrada]=useState(temporada.cerrada||false)
+
   async function guardar(){
     setGuardando(true)
     if(ultimoCod.trim()) localStorage.setItem(lsKey,ultimoCod.trim())
@@ -1739,6 +1899,36 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
     else{const{data}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single();onSave(data)}
     setGuardando(false);setOk(true);setTimeout(()=>setOk(false),2000)
   }
+
+  async function aplicarAumentoConf(){
+    const pct=Number(pctConf)
+    if(!pct){alert('Ingresá un porcentaje');return}
+    const{data:arts}=await sb.schema('costos').from('articulos').select('id,confeccion').eq('temporada_id',temporada.id)
+    const conConf=(arts||[]).filter(a=>a.confeccion>0)
+    if(!conConf.length){alert('No hay artículos con confección cargada');return}
+    if(!confirm(`¿Aplicar ${pct>0?'+':''}${pct}% de aumento a la confección de ${conConf.length} artículos?\n\nEjemplo: $2.000 → $${Math.round(2000*(1+pct/100)).toLocaleString('es-AR')}`))return
+    setAplicandoConf(true)
+    await Promise.all(conConf.map(a=>
+      sb.schema('costos').from('articulos').update({confeccion:Math.round(a.confeccion*(1+pct/100))}).eq('id',a.id)
+    ))
+    setAplicandoConf(false)
+    setPctConf('')
+    alert(`✅ Confección actualizada en ${conConf.length} artículos`)
+  }
+
+  async function toggleCerrada(){
+    const nueva=!cerrada
+    const msg=nueva
+      ?`¿Cerrar "${temporada.nombre}"?\n\nNo se van a poder editar precios ni artículos hasta que la reabras.`
+      :`¿Reabrir "${temporada.nombre}" para edición?`
+    if(!confirm(msg))return
+    await sb.schema('costos').from('temporadas').update({cerrada:nueva}).eq('id',temporada.id)
+    setCerrada(nueva)
+    const ts=await getTemporadas()
+    onTemporadas(ts)
+    alert(nueva?'🔒 Temporada cerrada':'🔓 Temporada reabierta')
+  }
+
   const set=(k,v)=>setForm(f=>({...f,[k]:v}))
   const ej=10000
   const pv=round500(ej*(1+form.margen_propio/100))
@@ -1748,9 +1938,19 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   return(
     <div className="page">
       <div className="page-header">
-        <div><div className="page-title">⚙️ Configuración</div><div className="page-sub">{temporada.nombre}</div></div>
+        <div>
+          <div className="page-title">⚙️ Configuración</div>
+          <div className="page-sub">{temporada.nombre} {cerrada&&<span style={{color:'#dc2626',fontWeight:700}}>· 🔒 CERRADA</span>}</div>
+        </div>
         <button className="btn btn-outline" onClick={()=>setMTemp(true)}>+ Nueva temporada</button>
       </div>
+
+      {cerrada&&(
+        <div style={{marginBottom:16,padding:'12px 16px',background:'#fef2f2',border:'1.5px solid #fca5a5',borderRadius:10,fontSize:13,color:'#991b1b'}}>
+          🔒 Esta temporada está cerrada. Los precios y artículos son de solo lectura para proteger los datos históricos.
+        </div>
+      )}
+
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Parámetros globales</div>
@@ -1778,27 +1978,163 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
               <span className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</span>
             </div>
           ))}
+
+          <div style={{marginTop:24,paddingTop:20,borderTop:'2px solid var(--border)'}}>
+            <div style={{fontWeight:700,marginBottom:6}}>✂️ Aumento masivo de confección</div>
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:10}}>Aplica el porcentaje a la confección de todos los artículos de esta temporada</div>
+            <div style={{display:'flex',gap:8}}>
+              <input type="number" className="form-input" placeholder="Ej: 15" value={pctConf} onChange={e=>setPctConf(e.target.value)} disabled={cerrada} style={{flex:1}}/>
+              <button className="btn btn-primary" onClick={aplicarAumentoConf} disabled={aplicandoConf||!pctConf||cerrada}>
+                {aplicandoConf?'Aplicando...':'Aplicar %'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{marginTop:24,paddingTop:20,borderTop:'2px solid var(--border)'}}>
+            <div style={{fontWeight:700,marginBottom:6}}>{cerrada?'🔓':'🔒'} {cerrada?'Reabrir':'Cerrar'} temporada</div>
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:10}}>
+              {cerrada
+                ?'La temporada está protegida. Reabrila si necesitás modificar algo.'
+                :'Protege los precios y artículos de esta temporada contra ediciones accidentales.'}
+            </div>
+            <button onClick={toggleCerrada} className="btn btn-outline" style={{width:'100%',minHeight:40,borderColor:cerrada?'#16a34a':'#dc2626',color:cerrada?'#16a34a':'#dc2626'}}>
+              {cerrada?'🔓 Reabrir temporada':'🔒 Cerrar temporada'}
+            </button>
+          </div>
         </div>
       </div>
-      {mTemp&&<ModalNuevaTemp onClose={()=>setMTemp(false)} onSave={async nombre=>{
-        await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
+      {mTemp&&<ModalNuevaTemp temporadas={temporadas} estacion={detectarEstacion(temporada.nombre)} onClose={()=>setMTemp(false)} onSave={async(nombre,yaCreada)=>{
+        if(!yaCreada) await sb.schema('costos').from('temporadas').insert({nombre,activa:false})
         const ts=await getTemporadas();onTemporadas(ts);setMTemp(false)
       }}/>}
     </div>
   )
 }
 
-function ModalNuevaTemp({onClose,onSave,sugerido}){
+function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
   const[nombre,setNombre]=useState(sugerido||'')
+  const[clonarDe,setClonarDe]=useState('')
   const[loading,setLoading]=useState(false)
-  async function guardar(){if(!nombre)return;setLoading(true);await onSave(nombre);setLoading(false)}
+  const[progreso,setProgreso]=useState('')
+  const candidatas=(temporadas||[]).filter(t=>detectarEstacion(t.nombre)===estacion)
+
+  async function guardar(){
+    if(!nombre)return
+    setLoading(true)
+    if(!clonarDe){await onSave(nombre);setLoading(false);return}
+    // Clonar
+    try{
+      setProgreso('Creando temporada...')
+      const{data:nueva,error}=await sb.schema('costos').from('temporadas').insert({nombre,activa:false}).select().single()
+      if(error||!nueva){alert('Error al crear temporada');setLoading(false);return}
+      const origenId=clonarDe
+
+      // 1. Config
+      setProgreso('Copiando configuración...')
+      const{data:cfg}=await sb.schema('costos').from('config').select('*').eq('temporada_id',origenId).limit(1)
+      if(cfg&&cfg.length){
+        const c=cfg[0]
+        await sb.schema('costos').from('config').insert({
+          temporada_id:nueva.id,precio_corte:c.precio_corte,margen_greguera:c.margen_greguera,
+          margen_balbi:c.margen_balbi,descuento_sucati:c.descuento_sucati,margen_propio:c.margen_propio
+        })
+      }
+
+      // 2. Telas / Avíos / Perchas — con precio_anterior y actualizado=false
+      setProgreso('Copiando telas, avíos y perchas...')
+      const[{data:telas},{data:avios},{data:perchas}]=await Promise.all([
+        sb.schema('costos').from('precios_tela').select('*').eq('temporada_id',origenId),
+        sb.schema('costos').from('precios_avios').select('*').eq('temporada_id',origenId),
+        sb.schema('costos').from('precios_perchas').select('*').eq('temporada_id',origenId),
+      ])
+      const mapTela={},mapAvio={},mapPercha={}
+      if(telas?.length){
+        const{data:nuevas}=await sb.schema('costos').from('precios_tela').insert(
+          telas.map(t=>({temporada_id:nueva.id,nombre:t.nombre,precio:t.precio,unidad:t.unidad,precio_anterior:t.precio,actualizado:false}))
+        ).select()
+        ;(nuevas||[]).forEach(n=>{const o=telas.find(t=>t.nombre===n.nombre);if(o)mapTela[o.id]=n.id})
+      }
+      if(avios?.length){
+        const{data:nuevos}=await sb.schema('costos').from('precios_avios').insert(
+          avios.map(a=>({temporada_id:nueva.id,nombre:a.nombre,precio:a.precio,precio_anterior:a.precio,actualizado:false}))
+        ).select()
+        ;(nuevos||[]).forEach(n=>{const o=avios.find(a=>a.nombre===n.nombre);if(o)mapAvio[o.id]=n.id})
+      }
+      if(perchas?.length){
+        const{data:nuevas}=await sb.schema('costos').from('precios_perchas').insert(
+          perchas.map(p=>({temporada_id:nueva.id,nombre:p.nombre,precio:p.precio,precio_anterior:p.precio,actualizado:false}))
+        ).select()
+        ;(nuevas||[]).forEach(n=>{const o=perchas.find(p=>p.nombre===n.nombre);if(o)mapPercha[o.id]=n.id})
+      }
+
+      // 3. Artículos
+      setProgreso('Copiando artículos...')
+      const{data:arts}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',origenId)
+      if(arts?.length){
+        const{data:nuevosArts}=await sb.schema('costos').from('articulos').insert(
+          arts.map(a=>({
+            temporada_id:nueva.id,codigo:a.codigo,descripcion:a.descripcion,confeccion:a.confeccion,
+            categoria:a.categoria,notas_taller:a.notas_taller,foto_url:a.foto_url,precio_venta_manual:a.precio_venta_manual
+          }))
+        ).select()
+        const mapArt={}
+        ;(nuevosArts||[]).forEach(n=>{const o=arts.find(a=>a.codigo===n.codigo);if(o)mapArt[o.id]=n.id})
+
+        // 4. Relaciones
+        setProgreso('Copiando composición de artículos...')
+        const ids=arts.map(a=>a.id)
+        const[{data:at},{data:aa},{data:ap}]=await Promise.all([
+          sb.schema('costos').from('articulo_telas').select('*').in('articulo_id',ids),
+          sb.schema('costos').from('articulo_avios').select('*').in('articulo_id',ids),
+          sb.schema('costos').from('articulo_percha').select('*').in('articulo_id',ids),
+        ])
+        const insT=(at||[]).filter(x=>mapArt[x.articulo_id]&&mapTela[x.precio_tela_id])
+          .map(x=>({articulo_id:mapArt[x.articulo_id],precio_tela_id:mapTela[x.precio_tela_id],cantidad:x.cantidad}))
+        const insA=(aa||[]).filter(x=>mapArt[x.articulo_id]&&mapAvio[x.precio_avio_id])
+          .map(x=>({articulo_id:mapArt[x.articulo_id],precio_avio_id:mapAvio[x.precio_avio_id],cantidad:x.cantidad}))
+        const insP=(ap||[]).filter(x=>mapArt[x.articulo_id]&&mapPercha[x.precio_percha_id])
+          .map(x=>({articulo_id:mapArt[x.articulo_id],precio_percha_id:mapPercha[x.precio_percha_id],cantidad:x.cantidad}))
+        if(insT.length)await sb.schema('costos').from('articulo_telas').insert(insT)
+        if(insA.length)await sb.schema('costos').from('articulo_avios').insert(insA)
+        if(insP.length)await sb.schema('costos').from('articulo_percha').insert(insP)
+      }
+      setProgreso('')
+      setLoading(false)
+      alert(`✅ Temporada "${nombre}" creada con ${arts?.length||0} artículos.\n\nRecordá actualizar los precios de telas y avíos — están marcados como pendientes.`)
+      onSave(nombre,true)
+    }catch(e){
+      setLoading(false);setProgreso('')
+      alert('Error al clonar: '+e.message)
+    }
+  }
+
   return(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header"><div className="modal-title">Nueva temporada</div><button className="modal-close" onClick={onClose}>×</button></div>
-        <div className="modal-body"><div className="form-group"><label className="form-label">Nombre</label><input className="form-input" placeholder="Ej: Verano 2027" value={nombre} onChange={e=>setNombre(e.target.value)} autoFocus/></div></div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Nombre</label>
+            <input className="form-input" placeholder="Ej: Verano 2027" value={nombre} onChange={e=>setNombre(e.target.value)} autoFocus/>
+          </div>
+          {candidatas.length>0&&(
+            <div className="form-group">
+              <label className="form-label">Clonar desde (opcional)</label>
+              <select className="form-input" value={clonarDe} onChange={e=>setClonarDe(e.target.value)}>
+                <option value="">Empezar vacía</option>
+                {candidatas.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>
+                {clonarDe
+                  ?'Se copiarán artículos, telas, avíos, perchas y configuración. Los precios quedarán marcados como pendientes de actualizar.'
+                  :'La temporada se creará sin artículos ni precios.'}
+              </div>
+            </div>
+          )}
+          {progreso&&<div style={{fontSize:13,color:'var(--azul)',fontWeight:600,padding:'8px 0'}}>⏳ {progreso}</div>}
+        </div>
         <div className="modal-footer">
-          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose}>Cancelar</button>
+          <button className="btn btn-outline" style={{flex:1,minHeight:44}} onClick={onClose} disabled={loading}>Cancelar</button>
           <button className="btn btn-primary" style={{flex:2,minHeight:44}} onClick={guardar} disabled={loading||!nombre}>{loading?'Creando...':'✅ Crear temporada'}</button>
         </div>
       </div>
