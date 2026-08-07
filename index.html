@@ -666,19 +666,24 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
           <div className="card" style={{overflow:'hidden'}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🧵 Telas</div>
             {telas.map((t,i)=>(
-              <div key={t.id} style={{display:'grid',gridTemplateColumns:'1fr 100px 90px 80px',gap:8,padding:'10px 14px',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
-                <div style={{fontSize:13,fontWeight:600}}>{t.nombre}<div style={{fontSize:10,color:'var(--text3)'}}>{t.unidad}</div></div>
-                <div>
-                  <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Precio/u</div>
-                  <input type="number" value={t.precio} onChange={e=>setTela(i,'precio',e.target.value)}
-                    style={{width:'100%',padding:'5px 6px',border:'1.5px solid var(--violeta)',borderRadius:6,fontSize:12,fontWeight:600}}/>
+              <div key={t.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
+                <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>{t.nombre} <span style={{color:'var(--text3)',fontWeight:400}}>({t.unidad})</span></div>
+                <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Precio por {t.unidad}</div>
+                    <input type="number" value={t.precio} onChange={e=>setTela(i,'precio',e.target.value)}
+                      style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--violeta)',borderRadius:8,fontSize:14,fontWeight:700}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Cantidad</div>
+                    <input type="number" value={t.cantidad} onChange={e=>setTela(i,'cantidad',e.target.value)}
+                      style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--violeta)',borderRadius:8,fontSize:14,fontWeight:700}}/>
+                  </div>
+                  <div style={{minWidth:80,textAlign:'right'}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Subtotal</div>
+                    <div style={{fontWeight:800,fontSize:15,color:'var(--text1)'}}>{fmt((Number(t.cantidad)||0)*(Number(t.precio)||0))}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Cantidad</div>
-                  <input type="number" value={t.cantidad} onChange={e=>setTela(i,'cantidad',e.target.value)}
-                    style={{width:'100%',padding:'5px 6px',border:'1.5px solid var(--violeta)',borderRadius:6,fontSize:12,fontWeight:600}}/>
-                </div>
-                <div style={{textAlign:'right',fontWeight:700,fontSize:13}}>{fmt((Number(t.cantidad)||0)*(Number(t.precio)||0))}</div>
               </div>
             ))}
             {telas.length===0&&<div style={{padding:12,textAlign:'center',color:'var(--text3)',fontSize:13}}>Sin telas</div>}
@@ -688,19 +693,24 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
           <div className="card" style={{overflow:'hidden'}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🪡 Avíos</div>
             {avios.map((a,i)=>(
-              <div key={a.id} style={{display:'grid',gridTemplateColumns:'1fr 100px 90px 80px',gap:8,padding:'10px 14px',borderBottom:'1px solid var(--border)',alignItems:'center'}}>
-                <div style={{fontSize:13,fontWeight:600}}>{a.nombre}</div>
-                <div>
-                  <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Precio/u</div>
-                  <input type="number" value={a.precio} onChange={e=>setAvio(i,'precio',e.target.value)}
-                    style={{width:'100%',padding:'5px 6px',border:'1.5px solid var(--violeta)',borderRadius:6,fontSize:12,fontWeight:600}}/>
+              <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
+                <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>{a.nombre}</div>
+                <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Precio/u</div>
+                    <input type="number" value={a.precio} onChange={e=>setAvio(i,'precio',e.target.value)}
+                      style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--violeta)',borderRadius:8,fontSize:14,fontWeight:700}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Cantidad</div>
+                    <input type="number" value={a.cantidad} onChange={e=>setAvio(i,'cantidad',e.target.value)}
+                      style={{width:'100%',padding:'7px 10px',border:'1.5px solid var(--violeta)',borderRadius:8,fontSize:14,fontWeight:700}}/>
+                  </div>
+                  <div style={{minWidth:80,textAlign:'right'}}>
+                    <div style={{fontSize:10,color:'var(--text3)',marginBottom:3}}>Subtotal</div>
+                    <div style={{fontWeight:800,fontSize:15,color:'var(--text1)'}}>{fmt((Number(a.cantidad)||0)*(Number(a.precio)||0))}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Cantidad</div>
-                  <input type="number" value={a.cantidad} onChange={e=>setAvio(i,'cantidad',e.target.value)}
-                    style={{width:'100%',padding:'5px 6px',border:'1.5px solid var(--violeta)',borderRadius:6,fontSize:12,fontWeight:600}}/>
-                </div>
-                <div style={{textAlign:'right',fontWeight:700,fontSize:13}}>{fmt((Number(a.cantidad)||0)*(Number(a.precio)||0))}</div>
               </div>
             ))}
             {avios.length===0&&<div style={{padding:12,textAlign:'center',color:'var(--text3)',fontSize:13}}>Sin avíos</div>}
