@@ -264,10 +264,22 @@ function ArticulosPage({temporada,config,todasTemporadas}){
   async function cargar(){
     setLoading(true)
     const arts=await getArticulos(temporada.id)
-    const con=await Promise.all(arts.map(async a=>{
-      const det=await getArticuloDetalle(a.id)
+    const ids=arts.map(a=>a.id)
+    // 3 consultas masivas en vez de 3 por artículo
+    const[{data:telas},{data:avios},{data:perchas}]=await Promise.all([
+      sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
+      sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
+      sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+    ])
+    // Agrupar por articulo_id
+    const mapTelas={},mapAvios={},mapPercha={}
+    ;(telas||[]).forEach(t=>{(mapTelas[t.articulo_id]=mapTelas[t.articulo_id]||[]).push(t)})
+    ;(avios||[]).forEach(a=>{(mapAvios[a.articulo_id]=mapAvios[a.articulo_id]||[]).push(a)})
+    ;(perchas||[]).forEach(p=>{(mapPercha[p.articulo_id]=mapPercha[p.articulo_id]||[]).push(p)})
+    const con=arts.map(a=>{
+      const det={telas:mapTelas[a.id]||[],avios:mapAvios[a.id]||[],percha:mapPercha[a.id]||[]}
       return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
-    }))
+    })
     setArticulos(con)
     setLoading(false)
   }
@@ -276,15 +288,18 @@ function ArticulosPage({temporada,config,todasTemporadas}){
     if(!busqueda)return
     setBuscandoGlobal(true)
     const otras=(todasTemporadas||[]).filter(t=>t.id!==temporada.id)
-    const resultados=[]
-    for(const temp of otras){
-      const{data:arts}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',temp.id)
-      const filtrados=(arts||[]).filter(a=>
-        a.codigo.toLowerCase().includes(busqueda.toLowerCase())||
-        (a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase())
-      )
-      if(filtrados.length)resultados.push({temporada:temp,articulos:filtrados})
-    }
+    if(!otras.length){setResultadosOtros([]);setBuscandoGlobal(false);return}
+    const ids=otras.map(t=>t.id)
+    const q=busqueda.toLowerCase()
+    // Una sola consulta para todas las temporadas
+    const{data:arts}=await sb.schema('costos').from('articulos').select('id,codigo,descripcion,temporada_id').in('temporada_id',ids)
+    const filtrados=(arts||[]).filter(a=>
+      a.codigo.toLowerCase().includes(q)||(a.descripcion||'').toLowerCase().includes(q)
+    )
+    const resultados=otras.map(t=>({
+      temporada:t,
+      articulos:filtrados.filter(a=>a.temporada_id===t.id)
+    })).filter(r=>r.articulos.length)
     setResultadosOtros(resultados)
     setBuscandoGlobal(false)
   }
@@ -660,13 +675,13 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
         </div>
 
         {/* Contenido scrollable */}
-        <div style={{overflowY:'auto',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
 
           {/* Telas */}
           <div className="card" style={{overflow:'hidden'}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🧵 Telas</div>
             {telas.map((t,i)=>(
-              <div key={t.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center'}}>
+              <div key={t.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center',flexShrink:0,minHeight:60}}>
                 <div style={{flex:2,fontWeight:600,fontSize:13}}>{t.nombre}<span style={{color:'var(--text3)',fontWeight:400,fontSize:11,marginLeft:4}}>({t.unidad})</span></div>
                 <div style={{flex:1}}>
                   <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Precio/{t.unidad}</div>
@@ -688,7 +703,7 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
           <div className="card" style={{overflow:'hidden'}}>
             <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:13,background:'var(--surface2)'}}>🪡 Avíos</div>
             {avios.map((a,i)=>(
-              <div key={a.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center'}}>
+              <div key={a.id} style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',display:'flex',gap:12,alignItems:'center',flexShrink:0,minHeight:60}}>
                 <div style={{flex:2,fontWeight:600,fontSize:13}}>{a.nombre}</div>
                 <div style={{flex:1}}>
                   <div style={{fontSize:10,color:'var(--text3)',marginBottom:2}}>Precio/u</div>
@@ -1393,10 +1408,20 @@ function ListaPreciosPage({temporada,config}){
   async function cargar(){
     setLoading(true)
     const arts=await getArticulos(temporada.id)
-    const con=await Promise.all(arts.map(async a=>{
-      const det=await getArticuloDetalle(a.id)
+    const ids=arts.map(a=>a.id)
+    const[{data:telas},{data:avios},{data:perchas}]=await Promise.all([
+      sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
+      sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
+      sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+    ])
+    const mapTelas={},mapAvios={},mapPercha={}
+    ;(telas||[]).forEach(t=>{(mapTelas[t.articulo_id]=mapTelas[t.articulo_id]||[]).push(t)})
+    ;(avios||[]).forEach(a=>{(mapAvios[a.articulo_id]=mapAvios[a.articulo_id]||[]).push(a)})
+    ;(perchas||[]).forEach(p=>{(mapPercha[p.articulo_id]=mapPercha[p.articulo_id]||[]).push(p)})
+    const con=arts.map(a=>{
+      const det={telas:mapTelas[a.id]||[],avios:mapAvios[a.id]||[],percha:mapPercha[a.id]||[]}
       return{...a,detalle:det,precios:calcPrecios(det,a.confeccion,config)}
-    }))
+    })
     const sinCat=con.filter(a=>!a.categoria)
     if(sinCat.length){
       await Promise.all(sinCat.map(a=>{
