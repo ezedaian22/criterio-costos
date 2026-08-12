@@ -285,8 +285,24 @@ function ArticulosPage({temporada,config,todasTemporadas}){
     setLoading(false)
   }
 
-  async function buscarEnOtras(){
-    if(!busqueda)return
+  const[artOtraTemp,setArtOtraTemp]=useState(null) // {art, temporada, config}
+
+  async function abrirArtOtraTemp(a,temp){
+    // Cargar detalle completo + config de esa temporada
+    const[{data:cfg},det]=await Promise.all([
+      sb.schema('costos').from('config').select('*').eq('temporada_id',temp.id).limit(1),
+      getArticuloDetalle(a.id)
+    ])
+    const{data:artCompleto}=await sb.schema('costos').from('articulos').select('*').eq('id',a.id).single()
+    const configOtra=cfg?.[0]||null
+    setArtOtraTemp({
+      art:{...artCompleto,detalle:det,precios:calcPrecios(det,artCompleto.confeccion,configOtra)},
+      temporada:temp,
+      config:configOtra
+    })
+  }
+
+  async function buscarEnOtras(){    if(!busqueda)return
     setBuscandoGlobal(true)
     const otras=(todasTemporadas||[]).filter(t=>t.id!==temporada.id)
     if(!otras.length){setResultadosOtros([]);setBuscandoGlobal(false);return}
@@ -412,6 +428,18 @@ function ArticulosPage({temporada,config,todasTemporadas}){
     }catch(e){setExportando(false);alert('Error: '+e)}
   }
 
+  if(artOtraTemp)return(
+    <div>
+      <div style={{background:'#fffbeb',borderBottom:'1.5px solid #fbbf24',padding:'10px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:13,color:'#92400e',fontWeight:600}}>
+          👁️ Viendo un artículo de <b>{artOtraTemp.temporada.nombre}</b> — estás trabajando en {temporada.nombre}
+        </span>
+        <button onClick={()=>setArtOtraTemp(null)} className="btn btn-sm btn-outline" style={{borderColor:'#fbbf24',color:'#92400e'}}>← Volver a {temporada.nombre}</button>
+      </div>
+      <ArticuloDetalle art={artOtraTemp.art} temporada={artOtraTemp.temporada} config={artOtraTemp.config} onBack={()=>setArtOtraTemp(null)}/>
+    </div>
+  )
+
   if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
 
   return(
@@ -483,12 +511,18 @@ function ArticulosPage({temporada,config,todasTemporadas}){
                   📅 {t.nombre} — {arts.length} resultado{arts.length!==1?'s':''}
                 </div>
                 {arts.map(a=>(
-                  <div key={a.id} style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#fff'}}>
+                  <div key={a.id} onClick={()=>abrirArtOtraTemp(a,t)}
+                    style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#fff',cursor:'pointer'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
                     <div>
                       <span style={{fontWeight:700,marginRight:8}}>{a.codigo}</span>
                       <span style={{fontSize:13,color:'var(--text2)'}}>{a.descripcion}</span>
                     </div>
-                    <span style={{fontSize:11,background:'var(--azul-bg)',color:'var(--azul)',padding:'2px 8px',borderRadius:10,fontWeight:600}}>{t.nombre}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:11,background:'var(--azul-bg)',color:'var(--azul)',padding:'2px 8px',borderRadius:10,fontWeight:600}}>{t.nombre}</span>
+                      <span style={{color:'var(--azul)',fontSize:16}}>›</span>
+                    </div>
                   </div>
                 ))}
               </div>
