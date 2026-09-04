@@ -18,6 +18,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nav-brand{font-weight:800;font-size:16px;margin-right:20px;white-space:nowrap}.nav-brand span{color:var(--azul)}
 .nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap}
 .nav-tab:hover{color:var(--text1)}.nav-tab.active{color:var(--azul);border-bottom-color:var(--azul)}
+.nav-sel{margin-left:auto;display:flex;align-items:center}
+/* Buscador fijo: acompaña el scroll, justo debajo de la franja */
+.buscador-fijo{position:sticky;top:52px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px}
+.buscador-caja{max-width:1100px;margin:0 auto;position:relative}
+.buscador-input{padding:7px 34px 7px 12px;font-size:13.5px}
+.buscador-limpiar{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:19px;line-height:1;color:var(--text3);cursor:pointer;padding:0 4px}
+.buscador-limpiar:hover{color:var(--text1)}
+.buscador-lista{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.14);max-height:340px;overflow-y:auto;z-index:150}
+.buscador-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.buscador-item:last-child{border-bottom:none}
+.buscador-item:hover{background:var(--azul-bg)}
+.buscador-cod{font-weight:700;font-size:14px;min-width:52px}
+.buscador-desc{font-size:13px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.buscador-ir{color:var(--azul);font-size:13px;font-weight:700}
+.buscador-vacio{padding:14px;text-align:center;color:var(--text3);font-size:13px}
 .page{max-width:1100px;margin:0 auto;padding:24px 16px}
 .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
 .page-title{font-size:22px;font-weight:800}.page-sub{font-size:14px;color:var(--text2);margin-top:2px}
@@ -69,7 +84,17 @@ tr:hover td{background:var(--surface2)}
 .tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
 .tag-azul{background:var(--azul-bg);color:var(--azul)}
 @media(max-width:780px){.detalle-grid{grid-template-columns:1fr}}
-@media(max-width:600px){.form-row{grid-template-columns:1fr}.nav-tab{padding:0 10px;font-size:12px}}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+/* En celular la barra necesitaba 721px y solo tenía 375: el selector de temporada
+   quedaba fuera de pantalla. Ahora marca y selector van en la primera fila, y las
+   pestañas se acomodan debajo. Nada se sale de la pantalla. */
+@media(max-width:820px){
+  .nav{height:auto;flex-wrap:wrap;padding:0 12px;row-gap:0}
+  .nav-brand{order:1;height:46px;display:flex;align-items:center;margin-right:auto;font-size:15px}
+  .nav-sel{order:2;height:46px;margin-left:0}
+  .nav-tab{order:3;height:38px;padding:0 10px;font-size:12px;flex:0 0 auto}
+  .buscador-fijo{position:static;padding:8px 12px}
+}
 </style>
 </head>
 <body>
@@ -82,10 +107,36 @@ const{useState,useEffect}=React
 const fmt=v=>v!=null?'$'+Math.round(v).toLocaleString('es-AR'):'—'
 const round500=v=>Math.round(v/500)*500
 
+// Toda escritura pasa por acá. Si la base rechaza el cambio, se avisa y se
+// devuelve false para que la pantalla NO muestre el dato como guardado.
+async function guardar(promesa,queSeGuardaba){
+  try{
+    const{error}=await promesa
+    if(error){
+      alert(`No se pudo guardar ${queSeGuardaba}.\n\nLa base respondió: ${error.message||error}\n\nEl cambio NO quedó registrado. Revisá la conexión y probá de nuevo.`)
+      return false
+    }
+    return true
+  }catch(e){
+    alert(`No se pudo guardar ${queSeGuardaba}.\n\n${e.message||e}\n\nEl cambio NO quedó registrado.`)
+    return false
+  }
+}
+
 async function getTemporadas(){const{data}=await sb.schema('costos').from('temporadas').select('*');return data||[]}
 async function getConfig(id){const{data}=await sb.schema('costos').from('config').select('*').eq('temporada_id',id).limit(1);return data?.[0]||null}
 async function getPrecios(tabla,id){const{data}=await sb.schema('costos').from(tabla).select('*').eq('temporada_id',id);return data||[]}
-async function getArticulos(id){const{data}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',id);return(data||[]).sort((a,b)=>a.codigo.localeCompare(b.codigo))}
+// Orden numérico: 128, 138, 156, 1332 — no alfabético (128, 1332, 138)
+const porCodigo=(a,b)=>a.codigo.localeCompare(b.codigo,'es',{numeric:true,sensitivity:'base'})
+async function getArticulos(id){const{data}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',id);return(data||[]).sort(porCodigo)}
+// Trae la composición de TODA una temporada en una sola consulta de largo fijo.
+// Antes se enumeraban los ids de cada artículo dentro de la URL: con 319 artículos
+// medía 11.909 caracteres y a ~440 la consulta se cortaba, devolviendo costos incompletos.
+function composicionDeTemporada(tabla,tablaPrecios,temporadaId){
+  return sb.schema('costos').from(tabla)
+    .select(`*,${tablaPrecios}(*),articulos!inner(temporada_id)`)
+    .eq('articulos.temporada_id',temporadaId)
+}
 async function getArticuloDetalle(id){
   const[{data:telas},{data:avios},{data:percha}]=await Promise.all([
     sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').eq('articulo_id',id),
@@ -98,13 +149,89 @@ function calcPrecios(det,confeccion,config){
   const t=(det.telas||[]).reduce((s,t)=>s+(t.cantidad*(t.precios_tela?.precio||0)),0)
   const a=(det.avios||[]).reduce((s,a)=>s+(a.cantidad*(a.precios_avios?.precio||0)),0)
   const p=(det.percha||[]).reduce((s,p)=>s+(p.cantidad*(p.precios_perchas?.precio||0)),0)
-  const corte=config?.precio_corte||0
-  const costo=t+a+p+corte+(confeccion||0)
-  const gr=(config?.margen_greguera||100)/100
-  const ba=(config?.margen_balbi||50)/100
-  const su=(config?.descuento_sucati||15)/100
+  const corte=config?.precio_corte??0
+  const costo=t+a+p+corte+(confeccion??0)
+  const gr=(config?.margen_greguera??100)/100
+  const ba=(config?.margen_balbi??50)/100
+  const su=(config?.descuento_sucati??15)/100
   const pv=(config?.margen_propio??config?.margen_greguera??100)/100
   return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),precioVenta:round500(costo*(1+pv)),totalTela:t,totalAvios:a,totalPercha:p,corte}
+}
+
+// Buscador fijo debajo de la barra. Permite saltar de un artículo a otro sin
+// volver atrás ni reescribir la búsqueda.
+function BuscadorFijo({indice,onElegir}){
+  const[q,setQ]=useState('')
+  const[abierto,setAbierto]=useState(false)
+  const caja=React.useRef(null)
+
+  useEffect(()=>{
+    const fuera=e=>{if(caja.current&&!caja.current.contains(e.target))setAbierto(false)}
+    document.addEventListener('mousedown',fuera)
+    return()=>document.removeEventListener('mousedown',fuera)
+  },[])
+
+  const t=q.trim().toLowerCase()
+  const res=!t?[]:indice.filter(a=>
+    a.codigo.toLowerCase().includes(t)||(a.descripcion||'').toLowerCase().includes(t)
+  ).slice(0,12)
+
+  function elegir(a){
+    setQ('');setAbierto(false)
+    onElegir(a.id)
+  }
+
+  return(
+    <div className="buscador-fijo">
+      <div className="buscador-caja" ref={caja}>
+        <input
+          className="form-input buscador-input"
+          placeholder="🔎 Ir a un artículo — código o descripción"
+          value={q}
+          onChange={e=>{setQ(e.target.value);setAbierto(true)}}
+          onFocus={()=>setAbierto(true)}
+          onKeyDown={e=>{
+            if(e.key==='Escape'){setQ('');setAbierto(false);e.target.blur()}
+            if(e.key==='Enter'&&res.length)elegir(res[0])
+          }}/>
+        {q&&<button className="buscador-limpiar" onClick={()=>{setQ('');setAbierto(false)}} title="Limpiar">×</button>}
+        {abierto&&t&&(
+          <div className="buscador-lista">
+            {res.length===0
+              ?<div className="buscador-vacio">Sin resultados para “{q}”</div>
+              :res.map(a=>(
+                <div key={a.id} className="buscador-item" onClick={()=>elegir(a)}>
+                  <span className="buscador-cod">{a.codigo}</span>
+                  <span className="buscador-desc">{a.descripcion||'Sin descripción'}</span>
+                  <span className="buscador-ir">↵</span>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Crea la planilla y falla con un mensaje entendible en vez de un TypeError.
+async function crearPlanilla(token,titulo){
+  const res=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({properties:{title:titulo}})
+  })
+  if(!res.ok){
+    let detalle=''
+    try{detalle=(await res.json())?.error?.message||''}catch(e){}
+    if(res.status===401||res.status===403)
+      throw new Error('Google rechazó el permiso para crear la planilla. Cerrá sesión de Google y volvé a autorizar.'+(detalle?`\n\n(${detalle})`:''))
+    if(res.status===429)
+      throw new Error('Google está limitando los pedidos por exceso de uso. Esperá unos minutos y probá de nuevo.')
+    throw new Error(`Google no pudo crear la planilla (error ${res.status}).`+(detalle?`\n\n${detalle}`:''))
+  }
+  const sheet=await res.json()
+  if(!sheet?.spreadsheetId)throw new Error('Google respondió sin identificador de planilla. No se pudo crear.')
+  return sheet
 }
 
 function detectarEstacion(nombre){
@@ -124,10 +251,21 @@ function App(){
   const[loading,setLoading]=useState(true)
   const[mTemp,setMTemp]=useState(false)
   const[mCambiar,setMCambiar]=useState(false)
+  // Buscador global: índice liviano de la temporada para saltar a un artículo
+  // desde cualquier pantalla, incluso estando dentro de otro artículo.
+  const[indice,setIndice]=useState([])
+  const[pedido,setPedido]=useState(null)
 
   useEffect(()=>{
     getTemporadas().then(ts=>{setTemporadas(ts);setLoading(false)})
   },[])
+
+  useEffect(()=>{
+    if(!temporada){setIndice([]);return}
+    sb.schema('costos').from('articulos').select('id,codigo,descripcion')
+      .eq('temporada_id',temporada.id)
+      .then(({data})=>setIndice((data||[]).sort(porCodigo)))
+  },[temporada?.id])
 
   async function elegirTemporada(t){
     setTemporada(t)
@@ -135,6 +273,17 @@ function App(){
     setPantalla('app')
     setMCambiar(false)
     setMTemp(false)
+  }
+
+  // Relee las temporadas y refresca la que está abierta, para que el
+  // "último código" (que ahora vive en la base) se vea al instante.
+  async function refrescarTemporadas(){
+    const ts=await getTemporadas()
+    setTemporadas(ts)
+    if(temporada){
+      const actual=ts.find(x=>x.id===temporada.id)
+      if(actual)setTemporada(actual)
+    }
   }
 
   async function crearTemporada(nombre,yaCreada){
@@ -206,7 +355,7 @@ function App(){
         {tabs.map(t=>(
           <div key={t} className={`nav-tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{tabLabel[t]}</div>
         ))}
-        <div style={{marginLeft:'auto',position:'relative'}}>
+        <div className="nav-sel" style={{position:'relative'}}>
           <span className="tag tag-azul" style={{cursor:'pointer'}} onClick={()=>setMCambiar(v=>!v)}>{temporada?.nombre} ▾</span>
           {mCambiar&&(
             <div style={{position:'absolute',right:0,top:'calc(100% + 8px)',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,boxShadow:'0 4px 20px rgba(0,0,0,0.12)',minWidth:230,zIndex:200,padding:8}}>
@@ -226,20 +375,21 @@ function App(){
           {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
         </div>
       </nav>
+      {temporada&&<BuscadorFijo indice={indice} onElegir={id=>{setTab('articulos');setPedido(id)}}/>}
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
-        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
+        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas} pedido={pedido} onPedidoListo={()=>setPedido(null)} onTemporadaCambio={refrescarTemporadas}/>
         :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
         :tab==='perchas'?<PreciosPage tipo="precios_perchas" titulo="Precios de Perchas" icono="🧲" temporada={temporada}/>
         :tab==='comparar'?<ComparadorPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
-        :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}}/>
+        :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}} onTemporadaCambio={refrescarTemporadas}/>
       }
     </div>
   )
 }
 
-function ArticulosPage({temporada,config,todasTemporadas}){
+function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoListo}){
   const[articulos,setArticulos]=useState([])
   const[loading,setLoading]=useState(true)
   const[busqueda,setBusqueda]=useState('')
@@ -262,15 +412,24 @@ function ArticulosPage({temporada,config,todasTemporadas}){
     return()=>clearTimeout(timer)
   },[busqueda])
 
+  // El buscador fijo pidió abrir un artículo: lo abrimos apenas esté cargado.
+  useEffect(()=>{
+    if(!pedido||loading)return
+    const a=articulos.find(x=>x.id===pedido)
+    if(a){setArtOtraTemp(null);setSeleccionado(a)}
+    else alert('Ese artículo ya no está en esta temporada.')
+    onPedidoListo&&onPedidoListo()
+  },[pedido,loading,articulos])
+
   async function cargar(){
     setLoading(true)
     const arts=await getArticulos(temporada.id)
-    const ids=arts.map(a=>a.id)
-    // 3 consultas masivas en vez de 3 por artículo
+    // 3 consultas masivas, filtradas por temporada en el servidor.
+    // No se enumeran los ids: la dirección queda de largo fijo y no hay techo de artículos.
     const[{data:telas},{data:avios},{data:perchas}]=await Promise.all([
-      sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
-      sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
-      sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+      composicionDeTemporada('articulo_telas','precios_tela',temporada.id),
+      composicionDeTemporada('articulo_avios','precios_avios',temporada.id),
+      composicionDeTemporada('articulo_percha','precios_perchas',temporada.id),
     ])
     // Agrupar por articulo_id
     const mapTelas={},mapAvios={},mapPercha={}
@@ -331,10 +490,9 @@ function ArticulosPage({temporada,config,todasTemporadas}){
   const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
-  const ultimoNumerico=React.useMemo(()=>{
-    const guardado=localStorage.getItem(`ultimoCodigo_${temporada.id}`)
-    return guardado?parseInt(guardado):null
-  },[temporada.id])
+  // Vive en la base (temporadas.ultimo_codigo): es el mismo para todos los
+  // equipos. Antes estaba en el navegador y cada máquina veía un número distinto.
+  const ultimoNumerico=temporada.ultimo_codigo??null
 
   function toggleSel(id,e){e.stopPropagation();setSelecc(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n})}
   function toggleTodos(){setSelecc(selecc.size===filtrados.length?new Set():new Set(filtrados.map(a=>a.id)))}
@@ -392,12 +550,7 @@ function ArticulosPage({temporada,config,todasTemporadas}){
           rows.push([a.codigo,a.descripcion||'',pv||0])
         })
       })
-      const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
-        method:'POST',
-        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
-        body:JSON.stringify({properties:{title:`Lista ${label} — ${temporada.nombre} — ${fecha}`}})
-      })
-      const sheet=await createRes.json()
+      const sheet=await crearPlanilla(token,`Lista ${label} — ${temporada.nombre} — ${fecha}`)
       const sid=sheet.spreadsheetId
       const sheetId=sheet.sheets[0].properties.sheetId
       const range=`A1:C${rows.length}`
@@ -425,7 +578,7 @@ function ArticulosPage({temporada,config,todasTemporadas}){
       window.open(`https://docs.google.com/spreadsheets/d/${sid}`,'_blank')
       salirModo()
       setExportando(false)
-    }catch(e){setExportando(false);alert('Error: '+e)}
+    }catch(e){setExportando(false);alert('No se pudo exportar a Sheets.\n\n'+(e?.message||e))}
   }
 
   if(artOtraTemp)return(
@@ -436,11 +589,14 @@ function ArticulosPage({temporada,config,todasTemporadas}){
         </span>
         <button onClick={()=>setArtOtraTemp(null)} className="btn btn-sm btn-outline" style={{borderColor:'#fbbf24',color:'#92400e'}}>← Volver a {temporada.nombre}</button>
       </div>
-      <ArticuloDetalle art={artOtraTemp.art} temporada={artOtraTemp.temporada} config={artOtraTemp.config} onBack={()=>setArtOtraTemp(null)}/>
+      <ArticuloDetalle key={artOtraTemp.art.id} art={artOtraTemp.art} temporada={artOtraTemp.temporada} config={artOtraTemp.config} onBack={()=>setArtOtraTemp(null)}/>
     </div>
   )
 
-  if(seleccionado)return <ArticuloDetalle art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
+  // key: al saltar de un artículo a otro desde el buscador, React tiene que rearmar
+  // la ficha entera. Sin esto quedaban el código, la descripción y la foto del
+  // artículo anterior encima de los datos del nuevo.
+  if(seleccionado)return <ArticuloDetalle key={seleccionado.id} art={seleccionado} temporada={temporada} config={config} onBack={()=>{setSeleccionado(null);cargar()}}/>
 
   return(
     <div className="page">
@@ -606,7 +762,7 @@ function ArticulosPage({temporada,config,todasTemporadas}){
         </div>
       )}
 
-      {modalNuevo&&<ModalNuevoArt temporada={temporada} articulos={articulos} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar()}}/>}
+      {modalNuevo&&<ModalNuevoArt temporada={temporada} articulos={articulos} onClose={()=>setModalNuevo(false)} onSave={()=>{setModalNuevo(false);cargar();onTemporadaCambio&&onTemporadaCambio()}}/>}
     </div>
   )
 }
@@ -671,9 +827,9 @@ function SimuladorModal({det,conf,config,codigo,onClose}){
     const a=avios.reduce((s,a)=>s+(Number(a.cantidad)||0)*(Number(a.precio)||0),0)
     const p=percha.reduce((s,p)=>s+(Number(p.precio)||0),0)
     const costo=t+a+p+(Number(corteSim)||0)+(Number(confSim)||0)
-    const gr=(config?.margen_greguera||100)/100
-    const ba=(config?.margen_balbi||50)/100
-    const su=(config?.descuento_sucati||15)/100
+    const gr=(config?.margen_greguera??100)/100
+    const ba=(config?.margen_balbi??50)/100
+    const su=(config?.descuento_sucati??15)/100
     const pv=(config?.margen_propio??config?.margen_greguera??100)/100
     return{costo,greguera:costo*(1+gr),balbi:costo*(1+ba),sucati:costo*(1+gr)*(1-su),precioVenta:round500(costo*(1+pv))}
   },[telas,avios,confSim,corteSim])
@@ -870,44 +1026,44 @@ function ArticuloDetalle({art,temporada,config,onBack}){
   }
   async function guardarConf(){
     const v=Number(confInput)||0
-    await sb.schema('costos').from('articulos').update({confeccion:v}).eq('id',art.id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({confeccion:v}).eq('id',art.id),'la confección'))return
     setConf(v);setEditConf(false)
   }
   async function guardarCodigo(){
     const v=codigoInput.trim()
     if(!v)return
-    await sb.schema('costos').from('articulos').update({codigo:v}).eq('id',art.id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({codigo:v}).eq('id',art.id),'el código'))return
     setCodigo(v);setEditCodigo(false)
   }
   async function guardarDescripcion(){
     const v=descInput.trim()
-    await sb.schema('costos').from('articulos').update({descripcion:v}).eq('id',art.id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({descripcion:v}).eq('id',art.id),'la descripción'))return
     setDescripcion(v);setEditDesc(false)
   }
   async function guardarTaller(){
     const v=tallerInput.trim()
-    await sb.schema('costos').from('articulos').update({notas_taller:v||null}).eq('id',art.id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({notas_taller:v||null}).eq('id',art.id),'las notas de taller'))return
     setNotasTaller(v);setEditTaller(false)
   }
   async function guardarCantidad(tabla,id,valor){
     const v=Number(valor)||0
-    await sb.schema('costos').from(tabla).update({cantidad:v}).eq('id',id)
+    if(!await guardar(sb.schema('costos').from(tabla).update({cantidad:v}).eq('id',id),'la cantidad'))return
     setEditandoCantidad(null)
     cargar()
   }
   async function guardarTela(id,precio_tela_id,cantidad){
-    await sb.schema('costos').from('articulo_telas').update({precio_tela_id,cantidad:Number(cantidad)||0}).eq('id',id)
+    if(!await guardar(sb.schema('costos').from('articulo_telas').update({precio_tela_id,cantidad:Number(cantidad)||0}).eq('id',id),'la tela'))return
     setEditandoCantidad(null)
     cargar()
   }
   async function guardarAvio(id,precio_avio_id,cantidad){
-    await sb.schema('costos').from('articulo_avios').update({precio_avio_id,cantidad:Number(cantidad)||0}).eq('id',id)
+    if(!await guardar(sb.schema('costos').from('articulo_avios').update({precio_avio_id,cantidad:Number(cantidad)||0}).eq('id',id),'el avío'))return
     setEditandoCantidad(null)
     cargar()
   }
-  async function delTela(id){await sb.schema('costos').from('articulo_telas').delete().eq('id',id);cargar()}
-  async function delAvio(id){await sb.schema('costos').from('articulo_avios').delete().eq('id',id);cargar()}
-  async function delPercha(id){await sb.schema('costos').from('articulo_percha').delete().eq('id',id);cargar()}
+  async function delTela(id){if(await guardar(sb.schema('costos').from('articulo_telas').delete().eq('id',id),'el borrado de la tela'))cargar()}
+  async function delAvio(id){if(await guardar(sb.schema('costos').from('articulo_avios').delete().eq('id',id),'el borrado del avío'))cargar()}
+  async function delPercha(id){if(await guardar(sb.schema('costos').from('articulo_percha').delete().eq('id',id),'el borrado de la percha'))cargar()}
 
   async function eliminarArticulo(){
     if(!confirm(`¿Eliminar el artículo ${codigo}? Esta acción no se puede deshacer.`))return
@@ -1255,9 +1411,8 @@ function ModalAdd({tipo,artId,tempId,onClose,onSave}){
 }
 
 function ModalNuevoArt({temporada,onClose,onSave,articulos}){
-  const lsKey=`ultimoCodigo_${temporada.id}`
-  const ultimoGuardado=localStorage.getItem(lsKey)
-  const sugerido=ultimoGuardado?String(parseInt(ultimoGuardado)+1):''
+  const ultimoGuardado=temporada.ultimo_codigo??null
+  const sugerido=ultimoGuardado?String(ultimoGuardado+1):''
   const[codigo,setCodigo]=useState(sugerido)
   const[desc,setDesc]=useState('')
   const[conf,setConf]=useState('')
@@ -1272,10 +1427,14 @@ function ModalNuevoArt({temporada,onClose,onSave,articulos}){
     const{data:nuevo,error:err}=await sb.schema('costos').from('articulos').insert({temporada_id:temporada.id,codigo:codigo.trim(),descripcion:desc,confeccion:Number(conf)||0}).select().single()
     if(err){setError('Error al guardar: '+err.message);setLoading(false);return}
     if(nuevo){
-      const{data:percha}=await sb.schema('costos').from('precios_perchas').select('id').eq('temporada_id',temporada.id).ilike('nombre','Percha 300').limit(1).single()
-      if(percha) await sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:percha.id,cantidad:1})
-      // Guardar último código usado
-      if(!isNaN(parseInt(codigo))) localStorage.setItem(lsKey,codigo.trim())
+      // Percha por defecto: la más usada en esta temporada. Antes estaba fijo el
+      // nombre "Percha 300" y si no existía, el artículo quedaba sin percha en silencio.
+      const percha=await perchaPorDefecto(temporada.id)
+      if(percha) await sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:percha,cantidad:1})
+      else alert('El artículo se creó, pero esta temporada todavía no tiene perchas cargadas.\nAgregale la percha desde el detalle del artículo.')
+      // Último código usado: queda en la base, compartido por todos los equipos
+      const n=parseInt(codigo.trim(),10)
+      if(!isNaN(n)) await sb.schema('costos').from('temporadas').update({ultimo_codigo:n}).eq('id',temporada.id)
     }
     setLoading(false);onSave()
   }
@@ -1309,6 +1468,20 @@ const CATEGORIAS=[
   'Chalecos','Tapados','Buzos / Sweaters','Polerones','Sacos',
   'Pilotines','Spolverinos','Ponchos','Blazers','Polleras','Conjuntos','Otros'
 ]
+
+// Elige la percha que más se usa en la temporada. Sin nombres fijos en el código:
+// si mañana la percha se llama distinto, sigue funcionando.
+async function perchaPorDefecto(temporadaId){
+  const{data:perchas}=await sb.schema('costos').from('precios_perchas').select('id,nombre').eq('temporada_id',temporadaId)
+  if(!perchas||!perchas.length)return null
+  if(perchas.length===1)return perchas[0].id
+  const{data:usos}=await sb.schema('costos').from('articulo_percha')
+    .select('precio_percha_id,articulos!inner(temporada_id)').eq('articulos.temporada_id',temporadaId)
+  const conteo={}
+  ;(usos||[]).forEach(u=>{conteo[u.precio_percha_id]=(conteo[u.precio_percha_id]||0)+1})
+  const masUsada=perchas.slice().sort((a,b)=>(conteo[b.id]||0)-(conteo[a.id]||0))[0]
+  return masUsada.id
+}
 
 function detectarCategoria(desc){
   if(!desc)return 'Otros'
@@ -1407,12 +1580,7 @@ function ListaPreciosPage({temporada,config}){
           rows.push([a.codigo,a.descripcion||'',pv||0,Math.round((pv||0)*0.9)||0,Math.round((pv||0)*0.83)||0])
         })
       })
-      const createRes=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
-        method:'POST',
-        headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
-        body:JSON.stringify({properties:{title:`Lista de Precios — ${temporada.nombre} — ${new Date().toLocaleDateString('es-AR')}`}})
-      })
-      const sheet=await createRes.json()
+      const sheet=await crearPlanilla(token,`Lista de Precios — ${temporada.nombre} — ${new Date().toLocaleDateString('es-AR')}`)
       const sid=sheet.spreadsheetId
       const sheetId=sheet.sheets[0].properties.sheetId
       const range=`A1:E${rows.length}`
@@ -1449,18 +1617,17 @@ function ListaPreciosPage({temporada,config}){
       setSubiendo(false)
     }catch(e){
       setSubiendo(false)
-      alert('Error: '+e)
+      alert('No se pudo exportar a Sheets.\n\n'+(e?.message||e))
     }
   }
 
   async function cargar(){
     setLoading(true)
     const arts=await getArticulos(temporada.id)
-    const ids=arts.map(a=>a.id)
     const[{data:telas},{data:avios},{data:perchas}]=await Promise.all([
-      sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
-      sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
-      sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+      composicionDeTemporada('articulo_telas','precios_tela',temporada.id),
+      composicionDeTemporada('articulo_avios','precios_avios',temporada.id),
+      composicionDeTemporada('articulo_percha','precios_perchas',temporada.id),
     ])
     const mapTelas={},mapAvios={},mapPercha={}
     ;(telas||[]).forEach(t=>{(mapTelas[t.articulo_id]=mapTelas[t.articulo_id]||[]).push(t)})
@@ -1484,13 +1651,13 @@ function ListaPreciosPage({temporada,config}){
 
   async function guardarPrecio(id,valor){
     const v=valor===''?null:Number(valor)
-    await sb.schema('costos').from('articulos').update({precio_venta_manual:v}).eq('id',id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({precio_venta_manual:v}).eq('id',id),'el precio de venta'))return
     setArticulos(arts=>arts.map(a=>a.id===id?{...a,precio_venta_manual:v}:a))
     setEditandoId(null)
   }
 
   async function guardarCategoria(id,cat){
-    await sb.schema('costos').from('articulos').update({categoria:cat}).eq('id',id)
+    if(!await guardar(sb.schema('costos').from('articulos').update({categoria:cat}).eq('id',id),'la categoría'))return
     setArticulos(arts=>arts.map(a=>a.id===id?{...a,categoria:cat}:a))
     setEditandoCatId(null)
   }
@@ -1696,12 +1863,11 @@ function ComparadorPage({temporada,config,todasTemporadas}){
     const configOtra=cfgOtra?.[0]||config
     const cargarTemp=async(tempId,cfg)=>{
       const{data:arts}=await sb.schema('costos').from('articulos').select('*').eq('temporada_id',tempId)
-      const ids=(arts||[]).map(a=>a.id)
-      if(!ids.length)return{}
+      if(!(arts||[]).length)return{}
       const[{data:t},{data:a},{data:p}]=await Promise.all([
-        sb.schema('costos').from('articulo_telas').select('*,precios_tela(*)').in('articulo_id',ids),
-        sb.schema('costos').from('articulo_avios').select('*,precios_avios(*)').in('articulo_id',ids),
-        sb.schema('costos').from('articulo_percha').select('*,precios_perchas(*)').in('articulo_id',ids),
+        composicionDeTemporada('articulo_telas','precios_tela',tempId),
+        composicionDeTemporada('articulo_avios','precios_avios',tempId),
+        composicionDeTemporada('articulo_percha','precios_perchas',tempId),
       ])
       const mT={},mA={},mP={}
       ;(t||[]).forEach(x=>{(mT[x.articulo_id]=mT[x.articulo_id]||[]).push(x)})
@@ -1790,14 +1956,14 @@ function PreciosPage({tipo,titulo,icono,temporada}){
   useEffect(()=>{cargar()},[temporada.id,tipo])
   async function cargar(){setLoading(true);const d=await getPrecios(tipo,temporada.id);setItems(d.sort((a,b)=>a.nombre.localeCompare(b.nombre)));setLoading(false)}
   async function guardarEdit(item,precio){
-    await sb.schema('costos').from(tipo).update({precio:Number(precio),actualizado:true}).eq('id',item.id)
+    if(!await guardar(sb.schema('costos').from(tipo).update({precio:Number(precio),actualizado:true}).eq('id',item.id),`el precio de ${item.nombre}`))return
     setEditando(null);cargar()
   }
   async function marcarOk(item){
-    await sb.schema('costos').from(tipo).update({actualizado:true}).eq('id',item.id)
+    if(!await guardar(sb.schema('costos').from(tipo).update({actualizado:true}).eq('id',item.id),`la revisión de ${item.nombre}`))return
     cargar()
   }
-  async function del(id){if(!confirm('¿Eliminar?'))return;await sb.schema('costos').from(tipo).delete().eq('id',id);cargar()}
+  async function del(id){if(!confirm('¿Eliminar?'))return;if(await guardar(sb.schema('costos').from(tipo).delete().eq('id',id),'el borrado'))cargar()}
 
   const pendientes=items.filter(i=>i.actualizado===false)
   let filtrados=items.filter(i=>!busqueda||i.nombre.toLowerCase().includes(busqueda.toLowerCase()))
@@ -1915,10 +2081,9 @@ function ModalNuevoPrecio({tipo,titulo,tempId,onClose,onSave}){
   )
 }
 
-function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
+function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTemporadaCambio}){
   const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,margen_propio:config?.margen_propio??config?.margen_greguera??100})
-  const lsKey=`ultimoCodigo_${temporada.id}`
-  const[ultimoCod,setUltimoCod]=useState(localStorage.getItem(lsKey)||'')
+  const[ultimoCod,setUltimoCod]=useState(temporada.ultimo_codigo!=null?String(temporada.ultimo_codigo):'')
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
   const[mTemp,setMTemp]=useState(false)
@@ -1926,11 +2091,22 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
   const[aplicandoConf,setAplicandoConf]=useState(false)
   const[cerrada,setCerrada]=useState(temporada.cerrada||false)
 
-  async function guardar(){
+  async function guardarConfig(){
     setGuardando(true)
-    if(ultimoCod.trim()) localStorage.setItem(lsKey,ultimoCod.trim())
-    if(config){const{data}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single();onSave(data)}
-    else{const{data}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single();onSave(data)}
+    const n=ultimoCod.trim()===''?null:parseInt(ultimoCod.trim(),10)
+    if(!await guardar(sb.schema('costos').from('temporadas').update({ultimo_codigo:isNaN(n)?null:n}).eq('id',temporada.id),'el último código')){
+      setGuardando(false);return
+    }
+    if(config){
+      const{data,error}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single()
+      if(error){setGuardando(false);alert('No se pudo guardar la configuración.\n\n'+error.message);return}
+      onSave(data)
+    }else{
+      const{data,error}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single()
+      if(error){setGuardando(false);alert('No se pudo guardar la configuración.\n\n'+error.message);return}
+      onSave(data)
+    }
+    onTemporadaCambio&&onTemporadaCambio()
     setGuardando(false);setOk(true);setTimeout(()=>setOk(false),2000)
   }
 
@@ -1942,12 +2118,16 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
     if(!conConf.length){alert('No hay artículos con confección cargada');return}
     if(!confirm(`¿Aplicar ${pct>0?'+':''}${pct}% de aumento a la confección de ${conConf.length} artículos?\n\nEjemplo: $2.000 → $${Math.round(2000*(1+pct/100)).toLocaleString('es-AR')}`))return
     setAplicandoConf(true)
-    await Promise.all(conConf.map(a=>
-      sb.schema('costos').from('articulos').update({confeccion:Math.round(a.confeccion*(1+pct/100))}).eq('id',a.id)
-    ))
+    // Una sola operación en la base: o cambian todos, o no cambia ninguno.
+    // Antes era un pedido por artículo y nadie revisaba si alguno fallaba.
+    const{data:cuantos,error}=await sb.schema('costos').rpc('aumentar_confeccion',{p_temporada:temporada.id,p_pct:pct})
     setAplicandoConf(false)
+    if(error){
+      alert(`No se pudo aplicar el aumento.\n\n${error.message}\n\nNo se modificó ningún artículo.`)
+      return
+    }
     setPctConf('')
-    alert(`✅ Confección actualizada en ${conConf.length} artículos`)
+    alert(`✅ Confección actualizada en ${cuantos} artículo${cuantos===1?'':'s'}`)
   }
 
   async function toggleCerrada(){
@@ -2002,7 +2182,7 @@ function ConfigPage({temporada,config,onSave,temporadas,onTemporadas}){
           <div className="form-group"><label className="form-label">Margen G. Reguera (%)</label><input type="number" className="form-input" value={form.margen_greguera} onChange={e=>set('margen_greguera',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Margen Balbi (%)</label><input type="number" className="form-input" value={form.margen_balbi} onChange={e=>set('margen_balbi',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Descuento Sucati (%)</label><input type="number" className="form-input" value={form.descuento_sucati} onChange={e=>set('descuento_sucati',Number(e.target.value))}/></div>
-          <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardar} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':'Guardar configuración'}</button>
+          <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardarConfig} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':'Guardar configuración'}</button>
         </div>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>
@@ -2116,11 +2296,9 @@ function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
 
         // 4. Relaciones
         setProgreso('Copiando composición de artículos...')
-        const ids=arts.map(a=>a.id)
+        const filaDe=t=>sb.schema('costos').from(t).select('*,articulos!inner(temporada_id)').eq('articulos.temporada_id',origenId)
         const[{data:at},{data:aa},{data:ap}]=await Promise.all([
-          sb.schema('costos').from('articulo_telas').select('*').in('articulo_id',ids),
-          sb.schema('costos').from('articulo_avios').select('*').in('articulo_id',ids),
-          sb.schema('costos').from('articulo_percha').select('*').in('articulo_id',ids),
+          filaDe('articulo_telas'),filaDe('articulo_avios'),filaDe('articulo_percha'),
         ])
         const insT=(at||[]).filter(x=>mapArt[x.articulo_id]&&mapTela[x.precio_tela_id])
           .map(x=>({articulo_id:mapArt[x.articulo_id],precio_tela_id:mapTela[x.precio_tela_id],cantidad:x.cantidad}))
