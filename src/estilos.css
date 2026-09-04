@@ -1,0 +1,84 @@
+:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--violeta:#7c3aed;--violeta-bg:#f5f3ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;gap:0}
+.nav-brand{font-weight:800;font-size:16px;margin-right:20px;white-space:nowrap}.nav-brand span{color:var(--azul)}
+.nav-tab{padding:0 14px;height:52px;display:flex;align-items:center;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap}
+.nav-tab:hover{color:var(--text1)}.nav-tab.active{color:var(--azul);border-bottom-color:var(--azul)}
+.nav-sel{margin-left:auto;display:flex;align-items:center}
+/* Buscador fijo: acompaña el scroll, justo debajo de la franja */
+.buscador-fijo{position:sticky;top:52px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px}
+.buscador-caja{max-width:1100px;margin:0 auto;position:relative}
+.buscador-input{padding:7px 34px 7px 12px;font-size:13.5px}
+.buscador-limpiar{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:19px;line-height:1;color:var(--text3);cursor:pointer;padding:0 4px}
+.buscador-limpiar:hover{color:var(--text1)}
+.buscador-lista{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.14);max-height:340px;overflow-y:auto;z-index:150}
+.buscador-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.buscador-item:last-child{border-bottom:none}
+.buscador-item:hover{background:var(--azul-bg)}
+.buscador-cod{font-weight:700;font-size:14px;min-width:52px}
+.buscador-desc{font-size:13px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.buscador-ir{color:var(--azul);font-size:13px;font-weight:700}
+.buscador-vacio{padding:14px;text-align:center;color:var(--text3);font-size:13px}
+.page{max-width:1100px;margin:0 auto;padding:24px 16px}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.page-title{font-size:22px;font-weight:800}.page-sub{font-size:14px;color:var(--text2);margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s}
+.btn-primary{background:var(--azul);color:white}.btn-primary:hover{background:#1d4ed8}
+.btn-outline{background:transparent;color:var(--text1);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--surface2)}
+.btn-sm{padding:5px 12px;font-size:13px}
+.btn-icon{padding:6px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:15px;color:var(--text2)}.btn-icon:hover{background:var(--surface2)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px}
+.form-input,.form-select{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text1);outline:none;transition:border 0.15s}
+.form-input:focus,.form-select:focus{border-color:var(--azul)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:580px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:17px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;color:var(--text2);cursor:pointer;line-height:1}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--surface)}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:14px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.precio-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.precio-item:last-child{border-bottom:none}
+.precio-costo{color:var(--text1);font-weight:700}
+.precio-greguera{color:var(--azul);font-weight:700}
+.precio-balbi{color:var(--verde);font-weight:700}
+.precio-sucati{color:var(--amarillo);font-weight:700}
+.precio-venta{color:var(--violeta);font-weight:700}
+.pct-tag{font-size:10px;font-weight:600;color:var(--text3)}
+.sep{height:1px;background:var(--border);margin:16px 0}
+.empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:18px;font-weight:700;color:var(--text1);margin-bottom:6px}
+.loading{text-align:center;padding:40px;color:var(--text2)}
+.detalle-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.caratula{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg);position:relative}
+.caratula-logo{font-size:38px;font-weight:800;margin-bottom:6px}
+.caratula-logo span{color:var(--azul)}
+.caratula-sub{font-size:15px;color:var(--text2);margin-bottom:28px}
+.caratula-estaciones{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.estacion-card{width:150px;height:150px;border-radius:16px;border:1.5px solid var(--border);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:40px;transition:all 0.15s;font-family:inherit}
+.estacion-card:hover{border-color:var(--azul);transform:translateY(-2px)}
+.estacion-card div{font-size:15px;font-weight:700;color:var(--text1)}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.tag-azul{background:var(--azul-bg);color:var(--azul)}
+@media(max-width:780px){.detalle-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+/* En celular la barra necesitaba 721px y solo tenía 375: el selector de temporada
+   quedaba fuera de pantalla. Ahora marca y selector van en la primera fila, y las
+   pestañas se acomodan debajo. Nada se sale de la pantalla. */
+@media(max-width:820px){
+  .nav{height:auto;flex-wrap:wrap;padding:0 12px;row-gap:0}
+  .nav-brand{order:1;height:46px;display:flex;align-items:center;margin-right:auto;font-size:15px}
+  .nav-sel{order:2;height:46px;margin-left:0}
+  .nav-tab{order:3;height:38px;padding:0 10px;font-size:12px;flex:0 0 auto}
+  .buscador-fijo{position:static;padding:8px 12px}
+}
