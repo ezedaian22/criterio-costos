@@ -466,15 +466,19 @@ function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoListo}){
     const otras=(todasTemporadas||[]).filter(t=>t.id!==temporada.id)
     if(!otras.length){setResultadosOtros([]);setBuscandoGlobal(false);return}
     const ids=otras.map(t=>t.id)
-    const q=busqueda.toLowerCase()
-    // Una sola consulta para todas las temporadas
-    const{data:arts}=await sb.schema('costos').from('articulos').select('id,codigo,descripcion,temporada_id').in('temporada_id',ids)
-    const filtrados=(arts||[]).filter(a=>
-      a.codigo.toLowerCase().includes(q)||(a.descripcion||'').toLowerCase().includes(q)
-    )
+    // Se filtra en el servidor. Antes bajaba el catálogo entero de todas las
+    // temporadas con cada tecla y recién después filtraba en el navegador.
+    // Se limpian los caracteres que romperían la sintaxis del filtro.
+    const q=busqueda.trim().replace(/[,()*:%\\"']/g,' ').trim()
+    if(!q){setResultadosOtros([]);setBuscandoGlobal(false);return}
+    const{data:arts}=await sb.schema('costos').from('articulos')
+      .select('id,codigo,descripcion,temporada_id')
+      .in('temporada_id',ids)
+      .or(`codigo.ilike.%${q}%,descripcion.ilike.%${q}%`)
+      .limit(50)
     const resultados=otras.map(t=>({
       temporada:t,
-      articulos:filtrados.filter(a=>a.temporada_id===t.id)
+      articulos:(arts||[]).filter(a=>a.temporada_id===t.id)
     })).filter(r=>r.articulos.length)
     setResultadosOtros(resultados)
     setBuscandoGlobal(false)
@@ -1884,8 +1888,9 @@ function ComparadorPage({temporada,config,todasTemporadas}){
     const codigos=[...new Set([...Object.keys(actual),...Object.keys(otra)])].sort()
     const filas=codigos.map(cod=>{
       const a=actual[cod],o=otra[cod]
-      const costoA=a?.precios?.costo||null, costoO=o?.precios?.costo||null
-      const varia=(costoA&&costoO)?((costoA-costoO)/costoO*100):null
+      // ?? y no ||: un artículo cargado con costo 0 existe, no es "no existe"
+      const costoA=a?.precios?.costo??null, costoO=o?.precios?.costo??null
+      const varia=(costoA!=null&&costoO!=null&&costoO!==0)?((costoA-costoO)/costoO*100):null
       return{codigo:cod,descripcion:a?.descripcion||o?.descripcion||'',costoActual:costoA,costoOtra:costoO,varia}
     })
     setDatos(filas)
