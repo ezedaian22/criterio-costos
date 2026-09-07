@@ -7,7 +7,55 @@ import { PreciosPage } from './paginas/Precios.jsx'
 import { ComparadorPage } from './paginas/Comparador.jsx'
 import { ConfigPage } from './paginas/Config.jsx'
 
+// Leyenda fija arriba de todo con la fecha del último backup local (ver
+// Documents/criterio-costos-respaldo). El script de backup inserta una fila
+// en costos.backups_log cada vez que corre; acá solo se lee la última.
+// Si la tabla todavía no existe, no se muestra nada: no es un error del
+// usuario, es que falta correr supabase/04-registro-de-backups.sql.
+function UltimoBackup(){
+  const[ultimo,setUltimo]=useState(null)
+
+  useEffect(()=>{
+    sb.schema('costos').from('backups_log')
+      .select('created_at, ok')
+      .order('created_at',{ascending:false})
+      .limit(1)
+      .then(({data,error})=>{ if(!error&&data&&data[0])setUltimo(data[0]) })
+  },[])
+
+  if(!ultimo)return null
+
+  const fecha=new Date(ultimo.created_at)
+  const fechaTexto=fecha.toLocaleDateString('es-AR')+' '+fecha.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
+  // Este backup corre TODOS los días a las 13:50 (el de talleres, solo hábiles).
+  // Más de 2 días sin uno nuevo ya no se explica por un fin de semana: es que
+  // la máquina estuvo apagada mucho tiempo o la tarea dejó de correr.
+  const diasSinCorrer=(Date.now()-fecha.getTime())/86400000
+  const estado=!ultimo.ok?'error':diasSinCorrer>2?'atrasado':'ok'
+
+  const estilos={
+    ok:       {bg:'var(--verde-bg)',   color:'var(--verde)',    texto:`🗄️ Último backup: ${fechaTexto}`},
+    atrasado: {bg:'var(--amarillo-bg)',color:'var(--amarillo)', texto:`⚠️ Último backup: ${fechaTexto} (hace más de 2 días)`},
+    error:    {bg:'var(--rojo-bg)',    color:'var(--rojo)',     texto:`❌ El último backup (${fechaTexto}) falló — revisar backup.log`},
+  }[estado]
+
+  return(
+    <div style={{background:estilos.bg,color:estilos.color,fontSize:12,fontWeight:600,textAlign:'center',padding:'4px 8px'}}>
+      {estilos.texto}
+    </div>
+  )
+}
+
 export default function App(){
+  return(
+    <>
+      <UltimoBackup/>
+      <Pantallas/>
+    </>
+  )
+}
+
+function Pantallas(){
   const[pantalla,setPantalla]=useState('caratula')
   const[estacion,setEstacion]=useState(null)
   const[tab,setTab]=useState('articulos')
