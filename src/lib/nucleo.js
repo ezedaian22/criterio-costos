@@ -118,7 +118,9 @@ export async function perchaPorDefecto(temporadaId){
 
 export function detectarCategoria(desc){
   if(!desc)return 'Otros'
-  const d=desc.toLowerCase()
+  // Se quitan los acentos antes de comparar: "Pantalón chupin" no coincidía con
+  // 'pantalon' y terminaba en "Otros". Lo mismo pasaba con murciélago y demás.
+  const d=desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   if(d.includes('pilotin')||d.includes('piloto')||d.includes('rompeviento'))return 'Pilotines'
   if(d.includes('tapado'))return 'Tapados'
   if(d.includes('campera'))return 'Camperas'
