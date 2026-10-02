@@ -54,6 +54,8 @@ tr:hover td{background:var(--surface2)}
 .precio-sucati{color:var(--amarillo);font-weight:700}
 .precio-venta{color:var(--violeta);font-weight:700}
 .pct-tag{font-size:10px;font-weight:600;color:var(--text3)}
+/* Marca de precio puesto a mano: el de la lista deja de seguir a la fórmula */
+.tag-manual{display:inline-block;font-size:9px;line-height:1.4;background:var(--violeta-bg);color:var(--violeta);padding:1px 5px;border-radius:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;vertical-align:middle}
 .sep{height:1px;background:var(--border);margin:16px 0}
 .empty{text-align:center;padding:60px 20px;color:var(--text2)}
 .empty-icon{font-size:48px;margin-bottom:12px}

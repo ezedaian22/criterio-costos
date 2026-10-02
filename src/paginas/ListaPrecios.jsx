@@ -321,7 +321,7 @@ export function ListaPreciosPage({temporada,config}){
                           ):(
                             <div style={{display:'flex',alignItems:'center',gap:8,justifyContent:'flex-end'}}>
                               <span className="precio-venta" style={{fontSize:16,cursor:'pointer'}} onClick={()=>setEditandoId(a.id)}>{fmt(pvFinal)}</span>
-                              {esManual&&<span style={{fontSize:10,background:'var(--violeta-bg)',color:'var(--violeta)',padding:'2px 6px',borderRadius:10,fontWeight:700}}>manual</span>}
+                              {esManual&&<span className="tag-manual" title={`Puesto a mano. Por fórmula daría ${fmt(pvCalc)}`}>a mano</span>}
                               <button className="btn-icon" onClick={()=>setEditandoId(a.id)}>✏️</button>
                             </div>
                           )}

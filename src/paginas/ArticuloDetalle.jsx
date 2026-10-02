@@ -27,6 +27,10 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   const[aviosList,setAviosList]=useState([])
   const[otrasTemps,setOtrasTemps]=useState([]) // {id,nombre,tieneArticulo}
   const[compartiendo,setCompartiendo]=useState(false)
+  // Precio de lista puesto a mano. Arranca con lo que trajo la lista y se
+  // refresca contra la base, por si lo cambiaron desde otra pantalla o equipo.
+  const[precioManual,setPrecioManual]=useState(art.precio_venta_manual??null)
+  const esManual=precioManual!=null
 
   useEffect(()=>{cargar();verificarOtrasTemps()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
@@ -35,6 +39,9 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     setLoading(true)
     const d=await getArticuloDetalle(art.id)
     setDet(d)
+    const{data:fila}=await sb.schema('costos').from('articulos')
+      .select('precio_venta_manual').eq('id',art.id).limit(1)
+    if(fila?.[0])setPrecioManual(fila[0].precio_venta_manual??null)
     setLoading(false)
   }
   async function verificarOtrasTemps(){
@@ -239,15 +246,23 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(96px,1fr))',gap:8,marginBottom:14}}>
         {[
           {l:'Costo',v:precios.costo,c:'precio-costo'},
-          {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
+          // Si el precio de lista se puso a mano, es ESE el que sale en la lista
+          // y en las exportaciones, así que es el que se muestra grande. Debajo
+          // queda el que daría la fórmula, para poder comparar.
+          esManual
+            ? {l:'Precio Venta',v:precioManual,c:'precio-venta',manual:true,calculado:precios.precioVenta}
+            : {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
           {l:'G. Reguera',v:precios.greguera,c:'precio-greguera',pct:'@'+(config?.margen_greguera??100)+'%'},
           {l:'Balbi',v:precios.balbi,c:'precio-balbi',pct:'@'+(config?.margen_balbi??50)+'%'},
           {l:'Sucati',v:precios.sucati,c:'precio-sucati',pct:'-'+(config?.descuento_sucati??15)+'%'},
         ].map(p=>(
-          <div key={p.l} className="card" style={{padding:'8px 10px'}}>
-            <div style={{fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:2}}>{p.l}</div>
+          <div key={p.l} className="card" style={{padding:'8px 10px',borderColor:p.manual?'var(--violeta)':undefined}}>
+            <div style={{fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:2,display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+              {p.l}{p.manual&&<span className="tag-manual">a mano</span>}
+            </div>
             <div className={p.c} style={{fontSize:16,fontWeight:800}}>{fmt(p.v)}</div>
             {p.pct&&<div className="pct-tag">{p.pct}</div>}
+            {p.manual&&<div className="pct-tag">por fórmula: {fmt(p.calculado)}</div>}
           </div>
         ))}
       </div>

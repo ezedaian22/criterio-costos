@@ -347,7 +347,19 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
                       </div>
                     )}
                   </td>
-                  <td style={{textAlign:'right'}}><span className="precio-venta">{fmt(a.precios?.precioVenta)}</span></td>
+                  {/* El precio que sale en la lista y en las exportaciones es el
+                      puesto a mano cuando existe, no el de la fórmula. Esta
+                      columna mostraba siempre el calculado y no coincidía. */}
+                  <td style={{textAlign:'right'}}>
+                    <span className="precio-venta">{fmt(getPrecio(a,'precioVenta'))}</span>
+                    {a.precio_venta_manual!=null&&(
+                      // La columna mide 80px: acá entra solo la marca. El precio
+                      // por fórmula va en el globo de ayuda y en el detalle.
+                      <div style={{marginTop:2}}>
+                        <span className="tag-manual" title={`Puesto a mano. Por fórmula daría ${fmt(a.precios?.precioVenta)}`}>a mano</span>
+                      </div>
+                    )}
+                  </td>
                   <td style={{textAlign:'right'}}><span className="precio-greguera">{fmt(a.precios?.greguera)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-balbi">{fmt(a.precios?.balbi)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-sucati">{fmt(a.precios?.sucati)}</span></td>
