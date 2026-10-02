@@ -97,7 +97,8 @@ export const CATEGORIAS=[
   'Pantalones','Calzas','Shorts / Bermudas','Remeras','Musculosas','Blusas',
   'Camisas / Chombas','Vestidos','Soleros','Monos / Kimonos','Camperas',
   'Chalecos','Tapados','Buzos / Sweaters','Polerones','Sacos',
-  'Pilotines','Spolverinos','Ponchos','Blazers','Polleras','Conjuntos','Otros'
+  'Pilotines','Spolverinos','Ponchos','Blazers','Polleras','Conjuntos',
+  'Importados','Otros'
 ]
 
 // Elige la percha que más se usa en la temporada. Sin nombres fijos en el código:
@@ -116,11 +117,15 @@ export async function perchaPorDefecto(temporadaId){
 }
 
 
-export function detectarCategoria(desc){
-  if(!desc)return 'Otros'
+export function detectarCategoria(desc,codigo){
   // Se quitan los acentos antes de comparar: "Pantalón chupin" no coincidía con
   // 'pantalon' y terminaba en "Otros". Lo mismo pasaba con murciélago y demás.
-  const d=desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  const limpiar=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  const d=limpiar(desc)
+  // Lo importado se mira tambien en el codigo, porque estos articulos se cargan
+  // al reves: el codigo dice "vestido importado" y la descripcion, "verano 26".
+  if(d.includes('importad')||limpiar(codigo).includes('importad'))return 'Importados'
+  if(!desc)return 'Otros'
   if(d.includes('pilotin')||d.includes('piloto')||d.includes('rompeviento'))return 'Pilotines'
   if(d.includes('tapado'))return 'Tapados'
   if(d.includes('campera'))return 'Camperas'

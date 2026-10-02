@@ -128,10 +128,10 @@ export function ListaPreciosPage({temporada,config}){
     const sinCat=con.filter(a=>!a.categoria)
     if(sinCat.length){
       await Promise.all(sinCat.map(a=>{
-        const cat=detectarCategoria(a.descripcion)
+        const cat=detectarCategoria(a.descripcion,a.codigo)
         return sb.schema('costos').from('articulos').update({categoria:cat}).eq('id',a.id)
       }))
-      sinCat.forEach(a=>{a.categoria=detectarCategoria(a.descripcion)})
+      sinCat.forEach(a=>{a.categoria=detectarCategoria(a.descripcion,a.codigo)})
     }
     setArticulos(con)
     setLoading(false)
