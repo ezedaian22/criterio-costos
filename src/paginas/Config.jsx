@@ -11,6 +11,42 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
   const[pctConf,setPctConf]=useState('')
   const[aplicandoConf,setAplicandoConf]=useState(false)
   const[cerrada,setCerrada]=useState(temporada.cerrada||false)
+  // Cuál es la temporada que se está produciendo. Hasta ahora este dato no se
+  // podía cambiar desde ningún lado: solo se escribía en false al crear una
+  // temporada, así que quedó desactualizado y la app del local leía el
+  // invierno cuando se estaba haciendo verano.
+  const activaActual=(temporadas||[]).find(t=>t.activa)
+  const[activaId,setActivaId]=useState(activaActual?.id||'')
+  const[cambiandoActiva,setCambiandoActiva]=useState(false)
+
+  async function cambiarActiva(nuevoId){
+    const elegida=(temporadas||[]).find(t=>t.id===nuevoId)
+    const anterior=(temporadas||[]).find(t=>t.activa)
+    if(anterior?.id===nuevoId)return
+    const msg=elegida
+      ? `¿Marcar "${elegida.nombre}" como la temporada que se está produciendo?${anterior?`\n\n"${anterior.nombre}" deja de estarlo.`:''}`
+      : `¿Dejar sin temporada activa?${anterior?`\n\n"${anterior.nombre}" deja de estarlo.`:''}`
+    if(!confirm(msg))return
+
+    setCambiandoActiva(true)
+    // Primero se apagan todas y después se prende la elegida, para que nunca
+    // queden dos marcadas a la vez.
+    for(const t of (temporadas||[]).filter(t=>t.activa)){
+      if(!await guardar(sb.schema('costos').from('temporadas').update({activa:false}).eq('id',t.id),`la temporada ${t.nombre}`)){
+        setCambiandoActiva(false);return
+      }
+    }
+    if(nuevoId){
+      if(!await guardar(sb.schema('costos').from('temporadas').update({activa:true}).eq('id',nuevoId),`la temporada ${elegida.nombre}`)){
+        setCambiandoActiva(false);return
+      }
+    }
+    setActivaId(nuevoId)
+    const ts=await getTemporadas()
+    onTemporadas(ts)
+    onTemporadaCambio&&onTemporadaCambio()
+    setCambiandoActiva(false)
+  }
 
   async function guardarConfig(){
     setGuardando(true)
@@ -122,6 +158,28 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
               <button className="btn btn-primary" onClick={aplicarAumentoConf} disabled={aplicandoConf||!pctConf||cerrada}>
                 {aplicandoConf?'Aplicando...':'Aplicar %'}
               </button>
+            </div>
+          </div>
+
+          <div style={{marginTop:24,paddingTop:20,borderTop:'2px solid var(--border)'}}>
+            <div style={{fontWeight:700,marginBottom:6}}>🏭 Temporada activa</div>
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:10}}>
+              La que se está produciendo. No cambia nada dentro de esta app: la usa
+              la app del local para saber de qué temporada tomar los precios.
+            </div>
+            <select className="form-input" value={activaId} disabled={cambiandoActiva}
+              onChange={e=>cambiarActiva(e.target.value)}>
+              <option value="">— ninguna —</option>
+              {(temporadas||[]).map(t=>(
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+            <div style={{fontSize:11,marginTop:6,color:activaActual?'var(--verde)':'var(--amarillo)',fontWeight:600}}>
+              {cambiandoActiva
+                ? 'Guardando...'
+                : activaActual
+                  ? `Hoy se está produciendo: ${activaActual.nombre}`
+                  : 'No hay ninguna marcada como activa'}
             </div>
           </div>
 
