@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { sb, fmt, guardar, round500, getTemporadas, detectarEstacion, precioCriterio, DESCUENTO_CRITERIO } from '../lib/nucleo.js'
+import { sb, fmt, guardar, round500, getTemporadas, detectarEstacion, precioCriterio } from '../lib/nucleo.js'
 import { ModalNuevaTemp } from '../componentes.jsx'
 
 export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTemporadaCambio}){
-  const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,margen_propio:config?.margen_propio??config?.margen_greguera??100})
+  const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,descuento_criterio:config?.descuento_criterio??20,margen_propio:config?.margen_propio??config?.margen_greguera??100})
   const[ultimoCod,setUltimoCod]=useState(temporada.ultimo_codigo!=null?String(temporada.ultimo_codigo):'')
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
@@ -139,11 +139,18 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
           <div className="form-group"><label className="form-label">Margen G. Reguera (%)</label><input type="number" className="form-input" value={form.margen_greguera} onChange={e=>set('margen_greguera',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Margen Balbi (%)</label><input type="number" className="form-input" value={form.margen_balbi} onChange={e=>set('margen_balbi',Number(e.target.value))}/></div>
           <div className="form-group"><label className="form-label">Descuento Sucati (%)</label><input type="number" className="form-input" value={form.descuento_sucati} onChange={e=>set('descuento_sucati',Number(e.target.value))}/></div>
+          <div className="form-group">
+            <label className="form-label">Descuento Criterio (%)</label>
+            <input type="number" className="form-input" value={form.descuento_criterio} onChange={e=>set('descuento_criterio',Number(e.target.value))}/>
+            <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>
+              Se descuenta del Precio Venta, no del costo. Se redondea al múltiplo de $500 más cercano
+            </div>
+          </div>
           <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardarConfig} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':'Guardar configuración'}</button>
         </div>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>
-          {[{l:'Precio Venta',v:pv,c:'precio-venta'},{l:'Criterio',v:precioCriterio(pv),c:'precio-criterio'},{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
+          {[{l:'Precio Venta',v:pv,c:'precio-venta'},{l:'Criterio',v:precioCriterio(pv,form.descuento_criterio),c:'precio-criterio'},{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
             <div key={p.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
               <span style={{fontSize:14,color:'var(--text2)'}}>{p.l}</span>
               <span className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</span>

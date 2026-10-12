@@ -1,5 +1,5 @@
 import React from 'react'
-import { fmt, round500, precioCriterio, DESCUENTO_CRITERIO } from '../lib/nucleo.js'
+import { fmt, round500, precioCriterio, descuentoCriterioDe } from '../lib/nucleo.js'
 
 export function SimuladorModal({det,conf,config,codigo,onClose}){
   const{useState:us,useMemo:um}=React
@@ -53,7 +53,7 @@ export function SimuladorModal({det,conf,config,codigo,onClose}){
             {[
               {l:'Costo',v:precios.costo,c:'#1a1a18'},
               {l:'Precio Venta',v:precios.precioVenta,c:'#7c3aed'},
-              {l:`Criterio -${DESCUENTO_CRITERIO}%`,v:precioCriterio(precios.precioVenta),c:'#be185d'},
+              {l:`Criterio -${descuentoCriterioDe(config)}%`,v:precioCriterio(precios.precioVenta,descuentoCriterioDe(config)),c:'#be185d'},
               {l:'G. Reguera',v:precios.greguera,c:'#2563eb'},
               {l:'Balbi',v:precios.balbi,c:'#16a34a'},
               {l:'Sucati',v:precios.sucati,c:'#d97706'},

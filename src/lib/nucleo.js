@@ -13,8 +13,12 @@ export const round500=v=>Math.round(v/500)*500
 // A diferencia de G. Reguera, Balbi y Sucati —que salen del costo— este sale del
 // PRECIO DE VENTA, así que si el artículo tiene precio puesto a mano, se calcula
 // sobre ese y no sobre el de la fórmula.
+// El descuento se configura por temporada (config.descuento_criterio). El 20
+// es solo el valor de respaldo si la temporada todavía no tiene configuración.
 export const DESCUENTO_CRITERIO=20
-export const precioCriterio=precioFinal=>round500((Number(precioFinal)||0)*(1-DESCUENTO_CRITERIO/100))
+export const descuentoCriterioDe=config=>config?.descuento_criterio??DESCUENTO_CRITERIO
+export const precioCriterio=(precioFinal,descuento=DESCUENTO_CRITERIO)=>
+  round500((Number(precioFinal)||0)*(1-(Number(descuento)??DESCUENTO_CRITERIO)/100))
 
 // Toda escritura pasa por acá. Si la base rechaza el cambio, se avisa y se
 // devuelve false para que la pantalla NO muestre el dato como guardado.

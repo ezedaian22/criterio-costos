@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { sb, fmt, guardar, getArticuloDetalle, calcPrecios, precioCriterio, DESCUENTO_CRITERIO } from '../lib/nucleo.js'
+import { sb, fmt, guardar, getArticuloDetalle, calcPrecios, precioCriterio, descuentoCriterioDe } from '../lib/nucleo.js'
 import { FotoUp, ModalAdd, EditInline, TelaEditInline, AvioEditInline } from '../componentes.jsx'
 import { SimuladorModal } from './Simulador.jsx'
 
@@ -254,7 +254,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
             : {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
           // Criterio sale del precio de venta final, no del costo: si hay precio
           // a mano se calcula sobre ese.
-          {l:'Criterio',v:precioCriterio(esManual?precioManual:precios.precioVenta),c:'precio-criterio',pct:'-'+DESCUENTO_CRITERIO+'% del precio'},
+          {l:'Criterio',v:precioCriterio(esManual?precioManual:precios.precioVenta,descuentoCriterioDe(config)),c:'precio-criterio',pct:'-'+descuentoCriterioDe(config)+'% del precio'},
           {l:'G. Reguera',v:precios.greguera,c:'precio-greguera',pct:'@'+(config?.margen_greguera??100)+'%'},
           {l:'Balbi',v:precios.balbi,c:'precio-balbi',pct:'@'+(config?.margen_balbi??50)+'%'},
           {l:'Sucati',v:precios.sucati,c:'precio-sucati',pct:'-'+(config?.descuento_sucati??15)+'%'},

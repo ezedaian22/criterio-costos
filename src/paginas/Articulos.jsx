@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { sb, fmt, getArticulos, getArticuloDetalle, composicionDeTemporada, calcPrecios, crearPlanilla, precioCriterio, DESCUENTO_CRITERIO } from '../lib/nucleo.js'
+import { sb, fmt, getArticulos, getArticuloDetalle, composicionDeTemporada, calcPrecios, crearPlanilla, precioCriterio, descuentoCriterioDe } from '../lib/nucleo.js'
 import { ModalNuevoArt } from '../componentes.jsx'
 import { ArticuloDetalle } from './ArticuloDetalle.jsx'
 
@@ -119,7 +119,7 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
   function getPrecio(a,tipo){
     if(tipo==='precioVenta') return a.precio_venta_manual!=null?a.precio_venta_manual:(a.precios?.precioVenta||0)
     // Criterio no sale del costo como los demás: sale del precio de venta final.
-    if(tipo==='criterio') return precioCriterio(getPrecio(a,'precioVenta'))
+    if(tipo==='criterio') return precioCriterio(getPrecio(a,'precioVenta'),descuentoCriterioDe(config))
     const map={costo:'costo',greguera:'greguera',balbi:'balbi',sucati:'sucati'}
     return a.precios?.[map[tipo]]||0
   }
@@ -320,7 +320,7 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
               <th>Artículo</th>
               <th style={{textAlign:'right'}}>Costo</th>
               <th style={{textAlign:'right'}}>Precio Venta<div className="pct-tag">@{config?.margen_propio??config?.margen_greguera??100}%</div></th>
-              <th style={{textAlign:'right'}}>Criterio<div className="pct-tag">-{DESCUENTO_CRITERIO}% del precio</div></th>
+              <th style={{textAlign:'right'}}>Criterio<div className="pct-tag">-{descuentoCriterioDe(config)}% del precio</div></th>
               <th style={{textAlign:'right'}}>G. Reguera<div className="pct-tag">@{config?.margen_greguera??100}%</div></th>
               <th style={{textAlign:'right'}}>Balbi<div className="pct-tag">@{config?.margen_balbi??50}%</div></th>
               <th style={{textAlign:'right'}}>Sucati<div className="pct-tag">-{config?.descuento_sucati??15}%</div></th>
@@ -363,7 +363,7 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
                       </div>
                     )}
                   </td>
-                  <td style={{textAlign:'right'}}><span className="precio-criterio">{fmt(precioCriterio(getPrecio(a,'precioVenta')))}</span></td>
+                  <td style={{textAlign:'right'}}><span className="precio-criterio">{fmt(precioCriterio(getPrecio(a,'precioVenta'),descuentoCriterioDe(config)))}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-greguera">{fmt(a.precios?.greguera)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-balbi">{fmt(a.precios?.balbi)}</span></td>
                   <td style={{textAlign:'right'}}><span className="precio-sucati">{fmt(a.precios?.sucati)}</span></td>
