@@ -1,4 +1,4 @@
-:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--violeta:#7c3aed;--violeta-bg:#f5f3ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
+:root{--bg:#f7f7f5;--surface:#ffffff;--surface2:#f0f0ee;--border:#e0e0dc;--text1:#1a1a18;--text2:#6b6b65;--text3:#a0a09a;--azul:#2563eb;--azul-bg:#eff6ff;--verde:#16a34a;--verde-bg:#f0fdf4;--rojo:#dc2626;--rojo-bg:#fef2f2;--amarillo:#d97706;--amarillo-bg:#fffbeb;--violeta:#7c3aed;--violeta-bg:#f5f3ff;--criterio:#be185d;--criterio-bg:#fdf2f8;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,0.08)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
 .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;gap:0}
@@ -13,7 +13,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .buscador-limpiar{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:19px;line-height:1;color:var(--text3);cursor:pointer;padding:0 4px}
 .buscador-limpiar:hover{color:var(--text1)}
 .buscador-lista{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.14);max-height:340px;overflow-y:auto;z-index:150}
-.buscador-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.buscador-item{display:block;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)}
+.buscador-fila{display:flex;align-items:center;gap:10px}
+/* Resumen de precios bajo cada resultado, para no tener que entrar al artículo */
+.buscador-precios{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;padding-left:62px;font-size:11.5px;color:var(--text2)}
+.buscador-precios b{font-weight:600;color:var(--text3);text-transform:uppercase;font-size:9.5px;letter-spacing:.3px;margin-right:2px}
+@media(max-width:700px){.buscador-precios{padding-left:0;gap:3px 10px}}
 .buscador-item:last-child{border-bottom:none}
 .buscador-item:hover{background:var(--azul-bg)}
 .buscador-cod{font-weight:700;font-size:14px;min-width:52px}
@@ -53,6 +58,7 @@ tr:hover td{background:var(--surface2)}
 .precio-balbi{color:var(--verde);font-weight:700}
 .precio-sucati{color:var(--amarillo);font-weight:700}
 .precio-venta{color:var(--violeta);font-weight:700}
+.precio-criterio{color:var(--criterio);font-weight:700}
 .pct-tag{font-size:10px;font-weight:600;color:var(--text3)}
 /* Marca de precio puesto a mano: el de la lista deja de seguir a la fórmula.
    Va en violeta pleno con letra blanca — en versión clarita y a 9px no se veía. */

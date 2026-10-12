@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { sb, fmt, guardar, round500, getTemporadas, detectarEstacion } from '../lib/nucleo.js'
+import { sb, fmt, guardar, round500, getTemporadas, detectarEstacion, precioCriterio, DESCUENTO_CRITERIO } from '../lib/nucleo.js'
 import { ModalNuevaTemp } from '../componentes.jsx'
 
 export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTemporadaCambio}){
@@ -143,7 +143,7 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
         </div>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>
-          {[{l:'Precio Venta',v:pv,c:'precio-venta'},{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
+          {[{l:'Precio Venta',v:pv,c:'precio-venta'},{l:'Criterio',v:precioCriterio(pv),c:'precio-criterio'},{l:'G. Reguera',v:gr,c:'precio-greguera'},{l:'Balbi',v:ba,c:'precio-balbi'},{l:'Sucati',v:su,c:'precio-sucati'}].map(p=>(
             <div key={p.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
               <span style={{fontSize:14,color:'var(--text2)'}}>{p.l}</span>
               <span className={p.c} style={{fontSize:20,fontWeight:800}}>{fmt(p.v)}</span>

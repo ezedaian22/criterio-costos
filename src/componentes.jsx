@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas } from './lib/nucleo.js'
+import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio } from './lib/nucleo.js'
 
 export function BuscadorFijo({indice,onElegir}){
   const[q,setQ]=useState('')
@@ -42,9 +42,21 @@ export function BuscadorFijo({indice,onElegir}){
               ?<div className="buscador-vacio">Sin resultados para “{q}”</div>
               :res.map(a=>(
                 <div key={a.id} className="buscador-item" onClick={()=>elegir(a)}>
-                  <span className="buscador-cod">{a.codigo}</span>
-                  <span className="buscador-desc">{a.descripcion||'Sin descripción'}</span>
-                  <span className="buscador-ir">↵</span>
+                  <div className="buscador-fila">
+                    <span className="buscador-cod">{a.codigo}</span>
+                    <span className="buscador-desc">{a.descripcion||'Sin descripción'}</span>
+                    <span className="buscador-ir">↵</span>
+                  </div>
+                  {a.precio_venta!=null&&(
+                    <div className="buscador-precios">
+                      <span><b>Costo</b> {fmt(a.costo)}</span>
+                      <span className="precio-venta"><b>Venta</b> {fmt(a.precio_venta)}{a.es_a_mano&&<span className="tag-manual" style={{marginLeft:4}}>a mano</span>}</span>
+                      <span className="precio-criterio"><b>Criterio</b> {fmt(precioCriterio(a.precio_venta))}</span>
+                      <span className="precio-greguera"><b>G. Reguera</b> {fmt(a.precio_greguera)}</span>
+                      <span className="precio-balbi"><b>Balbi</b> {fmt(a.precio_balbi)}</span>
+                      <span className="precio-sucati"><b>Sucati</b> {fmt(a.precio_sucati)}</span>
+                    </div>
+                  )}
                 </div>
               ))}
           </div>

@@ -74,11 +74,27 @@ function Pantallas(){
     getTemporadas().then(ts=>{setTemporadas(ts);setLoading(false)})
   },[])
 
+  // El índice del buscador sale de la vista precio_articulo, que ya trae el costo
+  // y los cinco precios resueltos en una sola consulta. Si la vista no estuviera
+  // creada, se cae a la consulta simple y el buscador anda igual, solo que sin
+  // el resumen de precios.
   useEffect(()=>{
     if(!temporada){setIndice([]);return}
-    sb.schema('costos').from('articulos').select('id,codigo,descripcion')
+    let vigente=true
+    sb.schema('costos').from('precio_articulo')
+      .select('articulo_id,codigo,descripcion,costo,precio_venta,es_a_mano,precio_greguera,precio_balbi,precio_sucati')
       .eq('temporada_id',temporada.id)
-      .then(({data})=>setIndice((data||[]).sort(porCodigo)))
+      .then(({data,error})=>{
+        if(!vigente)return
+        if(!error&&data?.length){
+          setIndice(data.map(x=>({...x,id:x.articulo_id})).sort(porCodigo))
+          return
+        }
+        sb.schema('costos').from('articulos').select('id,codigo,descripcion')
+          .eq('temporada_id',temporada.id)
+          .then(({data:d2})=>{ if(vigente)setIndice((d2||[]).sort(porCodigo)) })
+      })
+    return()=>{vigente=false}
   },[temporada?.id])
 
   async function elegirTemporada(t){

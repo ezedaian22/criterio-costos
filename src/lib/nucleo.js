@@ -9,6 +9,13 @@ export const sb = createClient('https://dptfgqdybjuhsehyhuyy.supabase.co', CLAVE
 export const fmt=v=>v!=null?'$'+Math.round(v).toLocaleString('es-AR'):'—'
 export const round500=v=>Math.round(v/500)*500
 
+// "Criterio": el precio de venta final menos 20%, al múltiplo de $500 más cercano.
+// A diferencia de G. Reguera, Balbi y Sucati —que salen del costo— este sale del
+// PRECIO DE VENTA, así que si el artículo tiene precio puesto a mano, se calcula
+// sobre ese y no sobre el de la fórmula.
+export const DESCUENTO_CRITERIO=20
+export const precioCriterio=precioFinal=>round500((Number(precioFinal)||0)*(1-DESCUENTO_CRITERIO/100))
+
 // Toda escritura pasa por acá. Si la base rechaza el cambio, se avisa y se
 // devuelve false para que la pantalla NO muestre el dato como guardado.
 export async function guardar(promesa,queSeGuardaba){
