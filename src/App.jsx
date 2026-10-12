@@ -82,7 +82,7 @@ function Pantallas(){
     if(!temporada){setIndice([]);return}
     let vigente=true
     sb.schema('costos').from('precio_articulo')
-      .select('articulo_id,codigo,descripcion,costo,precio_venta,es_a_mano,precio_criterio,precio_greguera,precio_balbi,precio_sucati')
+      .select('articulo_id,codigo,descripcion,costo,precio_venta,es_a_mano,precio_criterio,es_criterio_a_mano,precio_greguera,precio_balbi,precio_sucati')
       .eq('temporada_id',temporada.id)
       .then(({data,error})=>{
         if(!vigente)return

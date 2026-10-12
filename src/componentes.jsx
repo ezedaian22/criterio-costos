@@ -51,7 +51,7 @@ export function BuscadorFijo({indice,onElegir}){
                     <div className="buscador-precios">
                       <span><b>Costo</b> {fmt(a.costo)}</span>
                       <span className="precio-venta"><b>Venta</b> {fmt(a.precio_venta)}{a.es_a_mano&&<span className="tag-manual" style={{marginLeft:4}}>a mano</span>}</span>
-                      <span className="precio-criterio"><b>Criterio</b> {fmt(a.precio_criterio??precioCriterio(a.precio_venta))}</span>
+                      <span className="precio-criterio"><b>Criterio</b> {fmt(a.precio_criterio??precioCriterio(a.precio_venta))}{a.es_criterio_a_mano&&<span className="tag-manual" style={{marginLeft:4}}>a mano</span>}</span>
                       <span className="precio-greguera"><b>G. Reguera</b> {fmt(a.precio_greguera)}</span>
                       <span className="precio-balbi"><b>Balbi</b> {fmt(a.precio_balbi)}</span>
                       <span className="precio-sucati"><b>Sucati</b> {fmt(a.precio_sucati)}</span>

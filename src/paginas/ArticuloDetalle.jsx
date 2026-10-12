@@ -31,6 +31,23 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   // refresca contra la base, por si lo cambiaron desde otra pantalla o equipo.
   const[precioManual,setPrecioManual]=useState(art.precio_venta_manual??null)
   const esManual=precioManual!=null
+  // El Criterio también se puede escribir a mano. Si está vacío, sale de la fórmula.
+  const[criterioManual,setCriterioManual]=useState(art.precio_criterio_manual??null)
+  const[editCriterio,setEditCriterio]=useState(false)
+  const[criterioInput,setCriterioInput]=useState('')
+  const criterioEsManual=criterioManual!=null
+  const criterioPorFormula=precioCriterio(esManual?precioManual:precios.precioVenta,descuentoCriterioDe(config))
+
+  async function guardarCriterio(){
+    const v=criterioInput.trim()===''?null:Number(criterioInput)
+    if(v!=null&&isNaN(v)){alert('Ese no es un número válido.');return}
+    if(!await guardar(sb.schema('costos').from('articulos').update({precio_criterio_manual:v}).eq('id',art.id),'el precio Criterio'))return
+    setCriterioManual(v);setEditCriterio(false)
+  }
+  async function quitarCriterio(){
+    if(!await guardar(sb.schema('costos').from('articulos').update({precio_criterio_manual:null}).eq('id',art.id),'el precio Criterio'))return
+    setCriterioManual(null);setEditCriterio(false)
+  }
 
   useEffect(()=>{cargar();verificarOtrasTemps()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
@@ -40,8 +57,11 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     const d=await getArticuloDetalle(art.id)
     setDet(d)
     const{data:fila}=await sb.schema('costos').from('articulos')
-      .select('precio_venta_manual').eq('id',art.id).limit(1)
-    if(fila?.[0])setPrecioManual(fila[0].precio_venta_manual??null)
+      .select('precio_venta_manual,precio_criterio_manual').eq('id',art.id).limit(1)
+    if(fila?.[0]){
+      setPrecioManual(fila[0].precio_venta_manual??null)
+      setCriterioManual(fila[0].precio_criterio_manual??null)
+    }
     setLoading(false)
   }
   async function verificarOtrasTemps(){
@@ -253,17 +273,39 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
             ? {l:'Precio Venta',v:precioManual,c:'precio-venta',manual:true,calculado:precios.precioVenta}
             : {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
           // Criterio sale del precio de venta final, no del costo: si hay precio
-          // a mano se calcula sobre ese.
-          {l:'Criterio',v:precioCriterio(esManual?precioManual:precios.precioVenta,descuentoCriterioDe(config)),c:'precio-criterio',pct:'-'+descuentoCriterioDe(config)+'% del precio'},
+          // a mano se calcula sobre ese. Y además se puede escribir a mano.
+          criterioEsManual
+            ? {l:'Criterio',v:criterioManual,c:'precio-criterio',manual:true,calculado:criterioPorFormula,editable:'criterio'}
+            : {l:'Criterio',v:criterioPorFormula,c:'precio-criterio',pct:'-'+descuentoCriterioDe(config)+'% del precio',editable:'criterio'},
           {l:'G. Reguera',v:precios.greguera,c:'precio-greguera',pct:'@'+(config?.margen_greguera??100)+'%'},
           {l:'Balbi',v:precios.balbi,c:'precio-balbi',pct:'@'+(config?.margen_balbi??50)+'%'},
           {l:'Sucati',v:precios.sucati,c:'precio-sucati',pct:'-'+(config?.descuento_sucati??15)+'%'},
         ].map(p=>(
-          <div key={p.l} className="card" style={{padding:'8px 10px',borderColor:p.manual?'var(--violeta)':undefined}}>
+          <div key={p.l} className="card" style={{padding:'8px 10px',borderColor:p.manual?(p.editable==='criterio'?'var(--criterio)':'var(--violeta)'):undefined}}>
             <div style={{fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:2,display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
               {p.l}{p.manual&&<span className="tag-manual">a mano</span>}
             </div>
-            <div className={p.c} style={{fontSize:16,fontWeight:800}}>{fmt(p.v)}</div>
+            {p.editable==='criterio'&&editCriterio?(
+              <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+                <input type="number" value={criterioInput} onChange={e=>setCriterioInput(e.target.value)} autoFocus
+                  onKeyDown={e=>{if(e.key==='Enter')guardarCriterio();if(e.key==='Escape')setEditCriterio(false)}}
+                  style={{width:84,padding:'3px 6px',border:'1.5px solid var(--criterio)',borderRadius:6,fontSize:14,fontWeight:700}}/>
+                <button className="btn btn-sm btn-primary" onClick={guardarCriterio}>✓</button>
+                <button className="btn btn-sm btn-outline" onClick={()=>setEditCriterio(false)}>✕</button>
+              </div>
+            ):(
+              <div style={{display:'flex',alignItems:'center',gap:4}}>
+                <span className={p.c} style={{fontSize:16,fontWeight:800}}>{fmt(p.v)}</span>
+                {p.editable==='criterio'&&(
+                  <>
+                    <button className="btn-icon" style={{padding:'2px 5px',fontSize:12}} title="Escribir el Criterio a mano"
+                      onClick={()=>{setCriterioInput(String(Math.round(p.v||0)));setEditCriterio(true)}}>✏️</button>
+                    {p.manual&&<button className="btn-icon" style={{padding:'2px 5px',fontSize:12}} title="Volver a la fórmula"
+                      onClick={quitarCriterio}>↺</button>}
+                  </>
+                )}
+              </div>
+            )}
             {p.pct&&<div className="pct-tag">{p.pct}</div>}
             {p.manual&&<div className="pct-tag">por fórmula: {fmt(p.calculado)}</div>}
           </div>
