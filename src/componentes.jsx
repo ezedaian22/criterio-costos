@@ -77,9 +77,13 @@ export function TelaEditInline({tela,telasList,onSave,onCancel}){
   const[cant,setCant]=useState(String(tela.cantidad))
   return(
     <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
-      <select value={tid} onChange={e=>setTid(e.target.value)}
-        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160}}>
-        {telasList.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+      {/* Si la lista todavía no llegó se avisa, en vez de mostrar un desplegable
+          vacío que parece roto. */}
+      <select value={tid} onChange={e=>setTid(e.target.value)} disabled={!telasList.length}
+        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160,minWidth:120}}>
+        {telasList.length
+          ?telasList.map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)
+          :<option>Cargando telas…</option>}
       </select>
       <input type="number" value={cant} onChange={e=>setCant(e.target.value)}
         style={{width:70,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700}}/>
@@ -95,9 +99,11 @@ export function AvioEditInline({avio,aviosList,onSave,onCancel}){
   const[cant,setCant]=useState(String(avio.cantidad))
   return(
     <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}>
-      <select value={aid} onChange={e=>setAid(e.target.value)}
-        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160}}>
-        {aviosList.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+      <select value={aid} onChange={e=>setAid(e.target.value)} disabled={!aviosList.length}
+        style={{padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:12,maxWidth:160,minWidth:120}}>
+        {aviosList.length
+          ?aviosList.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)
+          :<option>Cargando avíos…</option>}
       </select>
       <input type="number" value={cant} onChange={e=>setCant(e.target.value)}
         style={{width:70,padding:'5px 8px',border:'1.5px solid var(--azul)',borderRadius:6,fontSize:13,fontWeight:700}}/>

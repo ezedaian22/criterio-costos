@@ -49,7 +49,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     setCriterioManual(null);setEditCriterio(false)
   }
 
-  useEffect(()=>{cargar();verificarOtrasTemps()},[art.id])
+  useEffect(()=>{cargar();verificarOtrasTemps();cargarTelas();cargarAvios()},[art.id])
   useEffect(()=>{setPrecios(calcPrecios(det,conf,config))},[det,conf,config])
 
   async function cargar(){
@@ -103,6 +103,9 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     verificarOtrasTemps()
     alert(`✅ Artículo ${codigo} copiado a ${tempNombre}`)
   }
+  // Las listas se cargan al abrir el artículo, no al apretar el lápiz. Antes se
+  // pedían recién al editar y, como no se esperaba la respuesta, el desplegable
+  // de telas se dibujaba vacío el primer segundo: parecía que no dejaba editar.
   async function cargarTelas(){
     if(telasList.length)return
     const{data}=await sb.schema('costos').from('precios_tela').select('*').eq('temporada_id',art.temporada_id)
