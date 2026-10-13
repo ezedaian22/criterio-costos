@@ -27,11 +27,19 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
   },[busqueda])
 
   // El buscador fijo pidió abrir un artículo: lo abrimos apenas esté cargado.
+  // Puede ser de OTRA temporada —el buscador busca en todas—, y entonces se abre
+  // en modo lectura con el cartel de aviso, sin cambiar la temporada de trabajo.
   useEffect(()=>{
     if(!pedido||loading)return
-    const a=articulos.find(x=>x.id===pedido)
-    if(a){setArtOtraTemp(null);setSeleccionado(a)}
-    else alert('Ese artículo ya no está en esta temporada.')
+    const id=typeof pedido==='string'?pedido:pedido.id
+    const a=articulos.find(x=>x.id===id)
+    if(a){
+      setArtOtraTemp(null);setSeleccionado(a)
+    }else{
+      const otra=(todasTemporadas||[]).find(t=>t.id===pedido?.temporada_id)
+      if(otra){setSeleccionado(null);abrirArtOtraTemp({id},otra)}
+      else alert('Ese artículo ya no existe.')
+    }
     onPedidoListo&&onPedidoListo()
   },[pedido,loading,articulos])
 

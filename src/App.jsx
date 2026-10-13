@@ -75,27 +75,25 @@ function Pantallas(){
   },[])
 
   // El índice del buscador sale de la vista precio_articulo, que ya trae el costo
-  // y los cinco precios resueltos en una sola consulta. Si la vista no estuviera
-  // creada, se cae a la consulta simple y el buscador anda igual, solo que sin
-  // el resumen de precios.
+  // y los cinco precios resueltos en una sola consulta. Se traen TODAS las
+  // temporadas, no solo la abierta: buscar un código de invierno estando en
+  // verano tiene que encontrarlo igual. Si la vista no estuviera creada, se cae
+  // a la consulta simple y el buscador anda igual, solo que sin los precios.
   useEffect(()=>{
-    if(!temporada){setIndice([]);return}
     let vigente=true
     sb.schema('costos').from('precio_articulo')
-      .select('articulo_id,codigo,descripcion,costo,precio_venta,es_a_mano,precio_criterio,es_criterio_a_mano,precio_greguera,precio_balbi,precio_sucati')
-      .eq('temporada_id',temporada.id)
+      .select('articulo_id,temporada_id,temporada,codigo,descripcion,costo,precio_venta,es_a_mano,precio_criterio,es_criterio_a_mano,precio_greguera,precio_balbi,precio_sucati')
       .then(({data,error})=>{
         if(!vigente)return
         if(!error&&data?.length){
           setIndice(data.map(x=>({...x,id:x.articulo_id})).sort(porCodigo))
           return
         }
-        sb.schema('costos').from('articulos').select('id,codigo,descripcion')
-          .eq('temporada_id',temporada.id)
+        sb.schema('costos').from('articulos').select('id,temporada_id,codigo,descripcion')
           .then(({data:d2})=>{ if(vigente)setIndice((d2||[]).sort(porCodigo)) })
       })
     return()=>{vigente=false}
-  },[temporada?.id])
+  },[])
 
   async function elegirTemporada(t){
     setTemporada(t)
@@ -205,7 +203,7 @@ function Pantallas(){
           {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
         </div>
       </nav>
-      {temporada&&<BuscadorFijo indice={indice} onElegir={id=>{setTab('articulos');setPedido(id)}}/>}
+      {temporada&&<BuscadorFijo indice={indice} temporadaId={temporada.id} onElegir={a=>{setTab('articulos');setPedido(a)}}/>}
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
         :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas} pedido={pedido} onPedidoListo={()=>setPedido(null)} onTemporadaCambio={refrescarTemporadas}/>
         :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>

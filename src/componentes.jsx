@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio } from './lib/nucleo.js'
 
-export function BuscadorFijo({indice,onElegir}){
+export function BuscadorFijo({indice,temporadaId,onElegir}){
   const[q,setQ]=useState('')
   const[abierto,setAbierto]=useState(false)
   const caja=React.useRef(null)
@@ -13,13 +13,16 @@ export function BuscadorFijo({indice,onElegir}){
   },[])
 
   const t=q.trim().toLowerCase()
-  const res=!t?[]:indice.filter(a=>
-    a.codigo.toLowerCase().includes(t)||(a.descripcion||'').toLowerCase().includes(t)
-  ).slice(0,12)
+  // Se busca en TODAS las temporadas, pero primero aparecen las de la que está
+  // abierta: si el código existe en las dos, lo más probable es que busque la suya.
+  const res=!t?[]:indice
+    .filter(a=>a.codigo.toLowerCase().includes(t)||(a.descripcion||'').toLowerCase().includes(t))
+    .sort((a,b)=>(a.temporada_id===temporadaId?0:1)-(b.temporada_id===temporadaId?0:1))
+    .slice(0,14)
 
   function elegir(a){
     setQ('');setAbierto(false)
-    onElegir(a.id)
+    onElegir(a)
   }
 
   return(
@@ -45,6 +48,7 @@ export function BuscadorFijo({indice,onElegir}){
                   <div className="buscador-fila">
                     <span className="buscador-cod">{a.codigo}</span>
                     <span className="buscador-desc">{a.descripcion||'Sin descripción'}</span>
+                    {a.temporada&&a.temporada_id!==temporadaId&&<span className="tag tag-azul" style={{fontSize:10,padding:'1px 7px'}}>{a.temporada}</span>}
                     <span className="buscador-ir">↵</span>
                   </div>
                   {a.precio_venta!=null&&(
