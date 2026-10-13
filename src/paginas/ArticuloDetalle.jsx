@@ -34,20 +34,30 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   const esManual=precioManual!=null
   // El Criterio también se puede escribir a mano. Si está vacío, sale de la fórmula.
   const[criterioManual,setCriterioManual]=useState(art.precio_criterio_manual??null)
-  const[editCriterio,setEditCriterio]=useState(false)
-  const[criterioInput,setCriterioInput]=useState('')
   const criterioEsManual=criterioManual!=null
   const criterioPorFormula=precioCriterio(esManual?precioManual:precios.precioVenta,descuentoCriterioDe(config))
 
-  async function guardarCriterio(){
-    const v=criterioInput.trim()===''?null:Number(criterioInput)
-    if(v!=null&&isNaN(v)){await avisar('Ese no es un número válido.');return}
-    if(!await guardar(sb.schema('costos').from('articulos').update({precio_criterio_manual:v}).eq('id',art.id),'el precio Criterio'))return
-    setCriterioManual(v);setEditCriterio(false)
+  // El Precio Venta y el Criterio se escriben a mano igual, así que comparten
+  // el mismo cuadro de edición: 'venta' o 'criterio', o null si no se edita nada.
+  const[editando,setEditando]=useState(null)
+  const[entrada,setEntrada]=useState('')
+
+  const CAMPO={
+    venta:    {columna:'precio_venta_manual',   nombre:'el precio de venta', set:setPrecioManual,   color:'var(--violeta)'},
+    criterio: {columna:'precio_criterio_manual',nombre:'el precio Criterio', set:setCriterioManual, color:'var(--criterio)'},
   }
-  async function quitarCriterio(){
-    if(!await guardar(sb.schema('costos').from('articulos').update({precio_criterio_manual:null}).eq('id',art.id),'el precio Criterio'))return
-    setCriterioManual(null);setEditCriterio(false)
+
+  async function guardarAMano(cual){
+    const{columna,nombre,set}=CAMPO[cual]
+    const v=entrada.trim()===''?null:Number(entrada)
+    if(v!=null&&isNaN(v)){await avisar('Ese no es un número válido.');return}
+    if(!await guardar(sb.schema('costos').from('articulos').update({[columna]:v}).eq('id',art.id),nombre))return
+    set(v);setEditando(null)
+  }
+  async function quitarAMano(cual){
+    const{columna,nombre,set}=CAMPO[cual]
+    if(!await guardar(sb.schema('costos').from('articulos').update({[columna]:null}).eq('id',art.id),nombre))return
+    set(null);setEditando(null)
   }
 
   useEffect(()=>{cargar();verificarOtrasTemps();cargarTelas();cargarAvios()},[art.id])
@@ -274,8 +284,8 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
           // y en las exportaciones, así que es el que se muestra grande. Debajo
           // queda el que daría la fórmula, para poder comparar.
           esManual
-            ? {l:'Precio Venta',v:precioManual,c:'precio-venta',manual:true,calculado:precios.precioVenta}
-            : {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%'},
+            ? {l:'Precio Venta',v:precioManual,c:'precio-venta',manual:true,calculado:precios.precioVenta,editable:'venta'}
+            : {l:'Precio Venta',v:precios.precioVenta,c:'precio-venta',pct:'@'+(config?.margen_propio??config?.margen_greguera??100)+'%',editable:'venta'},
           // Criterio sale del precio de venta final, no del costo: si hay precio
           // a mano se calcula sobre ese. Y además se puede escribir a mano.
           criterioEsManual
@@ -285,27 +295,27 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
           {l:'Balbi',v:precios.balbi,c:'precio-balbi',pct:'@'+(config?.margen_balbi??50)+'%'},
           {l:'Sucati',v:precios.sucati,c:'precio-sucati',pct:'-'+(config?.descuento_sucati??15)+'%'},
         ].map(p=>(
-          <div key={p.l} className="card" style={{padding:'8px 10px',borderColor:p.manual?(p.editable==='criterio'?'var(--criterio)':'var(--violeta)'):undefined}}>
+          <div key={p.l} className="card" style={{padding:'8px 10px',borderColor:p.manual?CAMPO[p.editable].color:undefined}}>
             <div style={{fontSize:10,fontWeight:600,color:'var(--text2)',textTransform:'uppercase',marginBottom:2,display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
               {p.l}{p.manual&&<span className="tag-manual">a mano</span>}
             </div>
-            {p.editable==='criterio'&&editCriterio?(
+            {p.editable&&editando===p.editable?(
               <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
-                <input type="number" value={criterioInput} onChange={e=>setCriterioInput(e.target.value)} autoFocus
-                  onKeyDown={e=>{if(e.key==='Enter')guardarCriterio();if(e.key==='Escape')setEditCriterio(false)}}
-                  style={{width:84,padding:'3px 6px',border:'1.5px solid var(--criterio)',borderRadius:6,fontSize:14,fontWeight:700}}/>
-                <button className="btn btn-sm btn-primary" onClick={guardarCriterio}>✓</button>
-                <button className="btn btn-sm btn-outline" onClick={()=>setEditCriterio(false)}>✕</button>
+                <input type="number" value={entrada} onChange={e=>setEntrada(e.target.value)} autoFocus
+                  onKeyDown={e=>{if(e.key==='Enter')guardarAMano(p.editable);if(e.key==='Escape')setEditando(null)}}
+                  style={{width:84,padding:'3px 6px',border:'1.5px solid '+CAMPO[p.editable].color,borderRadius:6,fontSize:14,fontWeight:700}}/>
+                <button className="btn btn-sm btn-primary" onClick={()=>guardarAMano(p.editable)}>✓</button>
+                <button className="btn btn-sm btn-outline" onClick={()=>setEditando(null)}>✕</button>
               </div>
             ):(
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 <span className={p.c} style={{fontSize:16,fontWeight:800}}>{fmt(p.v)}</span>
-                {p.editable==='criterio'&&(
+                {p.editable&&(
                   <>
-                    <button className="btn-icon" style={{padding:'2px 5px',fontSize:12}} title="Escribir el Criterio a mano"
-                      onClick={()=>{setCriterioInput(String(Math.round(p.v||0)));setEditCriterio(true)}}>✏️</button>
+                    <button className="btn-icon" style={{padding:'2px 5px',fontSize:12}} title={`Escribir el ${p.l} a mano`}
+                      onClick={()=>{setEntrada(String(Math.round(p.v||0)));setEditando(p.editable)}}>✏️</button>
                     {p.manual&&<button className="btn-icon" style={{padding:'2px 5px',fontSize:12}} title="Volver a la fórmula"
-                      onClick={quitarCriterio}>↺</button>}
+                      onClick={()=>quitarAMano(p.editable)}>↺</button>}
                   </>
                 )}
               </div>
