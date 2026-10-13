@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { avisar } from './dialogos.jsx'
 
 // Clave publica (anon) de Supabase. Va en el navegador por diseno: la
 // proteccion real son las politicas RLS y el login, no ocultar esta clave.
@@ -26,12 +27,12 @@ export async function guardar(promesa,queSeGuardaba){
   try{
     const{error}=await promesa
     if(error){
-      alert(`No se pudo guardar ${queSeGuardaba}.\n\nLa base respondió: ${error.message||error}\n\nEl cambio NO quedó registrado. Revisá la conexión y probá de nuevo.`)
+      await avisar(`No se pudo guardar ${queSeGuardaba}.\n\nLa base respondió: ${error.message||error}\n\nEl cambio NO quedó registrado. Revisá la conexión y probá de nuevo.`)
       return false
     }
     return true
   }catch(e){
-    alert(`No se pudo guardar ${queSeGuardaba}.\n\n${e.message||e}\n\nEl cambio NO quedó registrado.`)
+    await avisar(`No se pudo guardar ${queSeGuardaba}.\n\n${e.message||e}\n\nEl cambio NO quedó registrado.`)
     return false
   }
 }

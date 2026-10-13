@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getArticulos, composicionDeTemporada, calcPrecios, crearPlanilla, CATEGORIAS, detectarCategoria } from '../lib/nucleo.js'
+import { avisar, confirmar } from '../lib/dialogos.jsx'
 
 export function ListaPreciosPage({temporada,config}){
   const[articulos,setArticulos]=useState([])
@@ -41,7 +42,7 @@ export function ListaPreciosPage({temporada,config}){
           (pendTelas?`• ${pendTelas} tela${pendTelas!==1?'s':''}\n`:'')+
           (pendAvios?`• ${pendAvios} avío${pendAvios!==1?'s':''}\n`:'')+
           `\nLos costos pueden estar desactualizados. ¿Exportar igual?`
-        if(!confirm(msg))return
+        if(!await confirmar(msg))return
       }
       setSubiendo(true)
       const token=await obtenerToken()
@@ -105,7 +106,7 @@ export function ListaPreciosPage({temporada,config}){
       setSubiendo(false)
     }catch(e){
       setSubiendo(false)
-      alert('No se pudo exportar a Sheets.\n\n'+(e?.message||e))
+      await avisar('No se pudo exportar a Sheets.\n\n'+(e?.message||e))
     }
   }
 

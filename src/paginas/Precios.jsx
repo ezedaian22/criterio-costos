@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getPrecios } from '../lib/nucleo.js'
 import { EditInline, ModalNuevoPrecio } from '../componentes.jsx'
+import { confirmar } from '../lib/dialogos.jsx'
 
 export function PreciosPage({tipo,titulo,icono,temporada}){
   const[items,setItems]=useState([])
@@ -19,7 +20,7 @@ export function PreciosPage({tipo,titulo,icono,temporada}){
     if(!await guardar(sb.schema('costos').from(tipo).update({actualizado:true}).eq('id',item.id),`la revisión de ${item.nombre}`))return
     cargar()
   }
-  async function del(id){if(!confirm('¿Eliminar?'))return;if(await guardar(sb.schema('costos').from(tipo).delete().eq('id',id),'el borrado'))cargar()}
+  async function del(id){if(!await confirmar('¿Eliminar?'))return;if(await guardar(sb.schema('costos').from(tipo).delete().eq('id',id),'el borrado'))cargar()}
 
   const pendientes=items.filter(i=>i.actualizado===false)
   let filtrados=items.filter(i=>!busqueda||i.nombre.toLowerCase().includes(busqueda.toLowerCase()))

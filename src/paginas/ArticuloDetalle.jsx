@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getArticuloDetalle, calcPrecios, precioCriterio, descuentoCriterioDe } from '../lib/nucleo.js'
 import { FotoUp, ModalAdd, EditInline, TelaEditInline, AvioEditInline } from '../componentes.jsx'
 import { SimuladorModal } from './Simulador.jsx'
+import { avisar, confirmar, pedirTexto } from '../lib/dialogos.jsx'
 
 export function ArticuloDetalle({art,temporada,config,onBack}){
   const[det,setDet]=useState({telas:[],avios:[],percha:[]})
@@ -40,7 +41,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
 
   async function guardarCriterio(){
     const v=criterioInput.trim()===''?null:Number(criterioInput)
-    if(v!=null&&isNaN(v)){alert('Ese no es un número válido.');return}
+    if(v!=null&&isNaN(v)){await avisar('Ese no es un número válido.');return}
     if(!await guardar(sb.schema('costos').from('articulos').update({precio_criterio_manual:v}).eq('id',art.id),'el precio Criterio'))return
     setCriterioManual(v);setEditCriterio(false)
   }
@@ -74,13 +75,13 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     setOtrasTemps(veri)
   }
   async function compartirCon(tempId,tempNombre){
-    if(!confirm(`¿Compartir "${codigo}" con ${tempNombre}?\nSe copiará con las mismas telas, avíos y confección.`))return
+    if(!await confirmar(`¿Compartir "${codigo}" con ${tempNombre}?\nSe copiará con las mismas telas, avíos y confección.`))return
     setCompartiendo(true)
     const{data:nuevo}=await sb.schema('costos').from('articulos').insert({
       temporada_id:tempId,codigo:art.codigo,descripcion:art.descripcion,
       confeccion:art.confeccion,categoria:art.categoria,notas_taller:art.notas_taller
     }).select().single()
-    if(!nuevo){setCompartiendo(false);alert('Error al crear');return}
+    if(!nuevo){setCompartiendo(false);await avisar('Error al crear');return}
     // Copiar telas por nombre
     for(const t of det.telas){
       const nombre=t.precios_tela?.nombre;if(!nombre)continue
@@ -101,7 +102,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
     }
     setCompartiendo(false)
     verificarOtrasTemps()
-    alert(`✅ Artículo ${codigo} copiado a ${tempNombre}`)
+    await avisar(`✅ Artículo ${codigo} copiado a ${tempNombre}`)
   }
   // Las listas se cargan al abrir el artículo, no al apretar el lápiz. Antes se
   // pedían recién al editar y, como no se esperaba la respuesta, el desplegable
@@ -158,7 +159,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   async function delPercha(id){if(await guardar(sb.schema('costos').from('articulo_percha').delete().eq('id',id),'el borrado de la percha'))cargar()}
 
   async function eliminarArticulo(){
-    if(!confirm(`¿Eliminar el artículo ${codigo}? Esta acción no se puede deshacer.`))return
+    if(!await confirmar(`¿Eliminar el artículo ${codigo}? Esta acción no se puede deshacer.`))return
     await sb.schema('costos').from('articulo_telas').delete().eq('articulo_id',art.id)
     await sb.schema('costos').from('articulo_avios').delete().eq('articulo_id',art.id)
     await sb.schema('costos').from('articulo_percha').delete().eq('articulo_id',art.id)
@@ -167,18 +168,18 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   }
 
   async function duplicarArticulo(){
-    const nuevoCodigo=prompt(`Duplicar artículo ${codigo}\n\nIngresá el código para el nuevo artículo:`)
+    const nuevoCodigo=await pedirTexto(`Duplicar artículo ${codigo}\n\nIngresá el código para el nuevo artículo:`)
     if(!nuevoCodigo||!nuevoCodigo.trim())return
     const nc=nuevoCodigo.trim()
     // Verificar que no exista
     const{data:existe}=await sb.schema('costos').from('articulos').select('id').eq('temporada_id',art.temporada_id).eq('codigo',nc)
-    if(existe&&existe.length>0){alert(`El código ${nc} ya existe en esta temporada.`);return}
+    if(existe&&existe.length>0){await avisar(`El código ${nc} ya existe en esta temporada.`);return}
     // Crear nuevo artículo
     const{data:nuevo}=await sb.schema('costos').from('articulos').insert({
       temporada_id:art.temporada_id,codigo:nc,descripcion:art.descripcion,
       confeccion:art.confeccion,categoria:art.categoria,notas_taller:art.notas_taller
     }).select().single()
-    if(!nuevo){alert('Error al crear el artículo');return}
+    if(!nuevo){await avisar('Error al crear el artículo');return}
     // Copiar telas, avíos y percha
     const[{data:telas},{data:avios},{data:percha}]=await Promise.all([
       sb.schema('costos').from('articulo_telas').select('precio_tela_id,cantidad').eq('articulo_id',art.id),
@@ -190,7 +191,7 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
       ...(avios||[]).map(a=>sb.schema('costos').from('articulo_avios').insert({articulo_id:nuevo.id,precio_avio_id:a.precio_avio_id,cantidad:a.cantidad})),
       ...(percha||[]).map(p=>sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:p.precio_percha_id,cantidad:p.cantidad})),
     ])
-    alert(`✅ Artículo ${nc} creado con todo el contenido de ${codigo}. Buscalo en la lista para modificar lo que necesites.`)
+    await avisar(`✅ Artículo ${nc} creado con todo el contenido de ${codigo}. Buscalo en la lista para modificar lo que necesites.`)
     onBack()
   }
 

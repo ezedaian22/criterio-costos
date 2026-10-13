@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { sb, fmt, getArticulos, getArticuloDetalle, composicionDeTemporada, calcPrecios, crearPlanilla, precioCriterio, descuentoCriterioDe } from '../lib/nucleo.js'
 import { ModalNuevoArt } from '../componentes.jsx'
 import { ArticuloDetalle } from './ArticuloDetalle.jsx'
+import { avisar } from '../lib/dialogos.jsx'
 
 export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoListo}){
   const[articulos,setArticulos]=useState([])
@@ -38,7 +39,7 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
     }else{
       const otra=(todasTemporadas||[]).find(t=>t.id===pedido?.temporada_id)
       if(otra){setSeleccionado(null);abrirArtOtraTemp({id},otra)}
-      else alert('Ese artículo ya no existe.')
+      else avisar('Ese artículo ya no existe.')
     }
     onPedidoListo&&onPedidoListo()
   },[pedido,loading,articulos])
@@ -209,7 +210,7 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
       window.open(`https://docs.google.com/spreadsheets/d/${sid}`,'_blank')
       salirModo()
       setExportando(false)
-    }catch(e){setExportando(false);alert('No se pudo exportar a Sheets.\n\n'+(e?.message||e))}
+    }catch(e){setExportando(false);await avisar('No se pudo exportar a Sheets.\n\n'+(e?.message||e))}
   }
 
   if(artOtraTemp)return(

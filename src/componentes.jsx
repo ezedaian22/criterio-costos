@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio } from './lib/nucleo.js'
+import { avisar } from './lib/dialogos.jsx'
 
 export function BuscadorFijo({indice,temporadaId,onElegir}){
   const[q,setQ]=useState('')
@@ -239,7 +240,7 @@ export function ModalNuevoArt({temporada,onClose,onSave,articulos}){
       // nombre "Percha 300" y si no existía, el artículo quedaba sin percha en silencio.
       const percha=await perchaPorDefecto(temporada.id)
       if(percha) await sb.schema('costos').from('articulo_percha').insert({articulo_id:nuevo.id,precio_percha_id:percha,cantidad:1})
-      else alert('El artículo se creó, pero esta temporada todavía no tiene perchas cargadas.\nAgregale la percha desde el detalle del artículo.')
+      else await avisar('El artículo se creó, pero esta temporada todavía no tiene perchas cargadas.\nAgregale la percha desde el detalle del artículo.')
       // Último código usado: queda en la base, compartido por todos los equipos
       const n=parseInt(codigo.trim(),10)
       if(!isNaN(n)) await sb.schema('costos').from('temporadas').update({ultimo_codigo:n}).eq('id',temporada.id)
@@ -333,7 +334,7 @@ export function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
     try{
       setProgreso('Creando temporada...')
       const{data:nueva,error}=await sb.schema('costos').from('temporadas').insert({nombre,activa:false}).select().single()
-      if(error||!nueva){alert('Error al crear temporada');setLoading(false);return}
+      if(error||!nueva){await avisar('Error al crear temporada');setLoading(false);return}
       const origenId=clonarDe
 
       // 1. Config
@@ -405,11 +406,11 @@ export function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
       }
       setProgreso('')
       setLoading(false)
-      alert(`✅ Temporada "${nombre}" creada con ${arts?.length||0} artículos.\n\nRecordá actualizar los precios de telas y avíos — están marcados como pendientes.`)
+      await avisar(`✅ Temporada "${nombre}" creada con ${arts?.length||0} artículos.\n\nRecordá actualizar los precios de telas y avíos — están marcados como pendientes.`)
       onSave(nombre,true)
     }catch(e){
       setLoading(false);setProgreso('')
-      alert('Error al clonar: '+e.message)
+      await avisar('Error al clonar: '+e.message)
     }
   }
 

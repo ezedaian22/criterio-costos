@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { sb, fmt, guardar, round500, getTemporadas, detectarEstacion, precioCriterio } from '../lib/nucleo.js'
 import { ModalNuevaTemp } from '../componentes.jsx'
+import { avisar, confirmar } from '../lib/dialogos.jsx'
 
 export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTemporadaCambio}){
   const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,descuento_criterio:config?.descuento_criterio??20,margen_propio:config?.margen_propio??config?.margen_greguera??100})
@@ -26,7 +27,7 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
     const msg=elegida
       ? `¿Marcar "${elegida.nombre}" como la temporada que se está produciendo?${anterior?`\n\n"${anterior.nombre}" deja de estarlo.`:''}`
       : `¿Dejar sin temporada activa?${anterior?`\n\n"${anterior.nombre}" deja de estarlo.`:''}`
-    if(!confirm(msg))return
+    if(!await confirmar(msg))return
 
     setCambiandoActiva(true)
     // Primero se apagan todas y después se prende la elegida, para que nunca
@@ -56,11 +57,11 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
     }
     if(config){
       const{data,error}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single()
-      if(error){setGuardando(false);alert('No se pudo guardar la configuración.\n\n'+error.message);return}
+      if(error){setGuardando(false);await avisar('No se pudo guardar la configuración.\n\n'+error.message);return}
       onSave(data)
     }else{
       const{data,error}=await sb.schema('costos').from('config').insert({...form,temporada_id:temporada.id}).select().single()
-      if(error){setGuardando(false);alert('No se pudo guardar la configuración.\n\n'+error.message);return}
+      if(error){setGuardando(false);await avisar('No se pudo guardar la configuración.\n\n'+error.message);return}
       onSave(data)
     }
     onTemporadaCambio&&onTemporadaCambio()
@@ -69,22 +70,22 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
 
   async function aplicarAumentoConf(){
     const pct=Number(pctConf)
-    if(!pct){alert('Ingresá un porcentaje');return}
+    if(!pct){await avisar('Ingresá un porcentaje');return}
     const{data:arts}=await sb.schema('costos').from('articulos').select('id,confeccion').eq('temporada_id',temporada.id)
     const conConf=(arts||[]).filter(a=>a.confeccion>0)
-    if(!conConf.length){alert('No hay artículos con confección cargada');return}
-    if(!confirm(`¿Aplicar ${pct>0?'+':''}${pct}% de aumento a la confección de ${conConf.length} artículos?\n\nEjemplo: $2.000 → $${Math.round(2000*(1+pct/100)).toLocaleString('es-AR')}`))return
+    if(!conConf.length){await avisar('No hay artículos con confección cargada');return}
+    if(!await confirmar(`¿Aplicar ${pct>0?'+':''}${pct}% de aumento a la confección de ${conConf.length} artículos?\n\nEjemplo: $2.000 → $${Math.round(2000*(1+pct/100)).toLocaleString('es-AR')}`))return
     setAplicandoConf(true)
     // Una sola operación en la base: o cambian todos, o no cambia ninguno.
     // Antes era un pedido por artículo y nadie revisaba si alguno fallaba.
     const{data:cuantos,error}=await sb.schema('costos').rpc('aumentar_confeccion',{p_temporada:temporada.id,p_pct:pct})
     setAplicandoConf(false)
     if(error){
-      alert(`No se pudo aplicar el aumento.\n\n${error.message}\n\nNo se modificó ningún artículo.`)
+      await avisar(`No se pudo aplicar el aumento.\n\n${error.message}\n\nNo se modificó ningún artículo.`)
       return
     }
     setPctConf('')
-    alert(`✅ Confección actualizada en ${cuantos} artículo${cuantos===1?'':'s'}`)
+    await avisar(`✅ Confección actualizada en ${cuantos} artículo${cuantos===1?'':'s'}`)
   }
 
   async function toggleCerrada(){
@@ -92,12 +93,12 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
     const msg=nueva
       ?`¿Cerrar "${temporada.nombre}"?\n\nNo se van a poder editar precios ni artículos hasta que la reabras.`
       :`¿Reabrir "${temporada.nombre}" para edición?`
-    if(!confirm(msg))return
+    if(!await confirmar(msg))return
     await sb.schema('costos').from('temporadas').update({cerrada:nueva}).eq('id',temporada.id)
     setCerrada(nueva)
     const ts=await getTemporadas()
     onTemporadas(ts)
-    alert(nueva?'🔒 Temporada cerrada':'🔓 Temporada reabierta')
+    await avisar(nueva?'🔒 Temporada cerrada':'🔓 Temporada reabierta')
   }
 
   const set=(k,v)=>setForm(f=>({...f,[k]:v}))

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { sb, getTemporadas, getConfig, porCodigo, detectarEstacion } from './lib/nucleo.js'
 import { BuscadorFijo, ModalNuevaTemp } from './componentes.jsx'
+import { Dialogos } from './lib/dialogos.jsx'
 import { ArticulosPage } from './paginas/Articulos.jsx'
 import { ListaPreciosPage } from './paginas/ListaPrecios.jsx'
 import { PreciosPage } from './paginas/Precios.jsx'
@@ -50,6 +51,7 @@ export default function App(){
   return(
     <>
       <UltimoBackup/>
+      <Dialogos/>
       <Pantallas/>
     </>
   )
