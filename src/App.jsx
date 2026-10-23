@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { sb, getTemporadas, getConfig, porCodigo, detectarEstacion } from './lib/nucleo.js'
 import { BuscadorFijo, ModalNuevaTemp } from './componentes.jsx'
 import { Dialogos } from './lib/dialogos.jsx'
@@ -81,21 +81,33 @@ function Pantallas(){
   // temporadas, no solo la abierta: buscar un código de invierno estando en
   // verano tiene que encontrarlo igual. Si la vista no estuviera creada, se cae
   // a la consulta simple y el buscador anda igual, solo que sin los precios.
-  useEffect(()=>{
-    let vigente=true
-    sb.schema('costos').from('precio_articulo')
+  const montado=useRef(true)
+  const ultimaCarga=useRef(0)
+  useEffect(()=>()=>{montado.current=false},[])
+
+  const cargarIndice=useCallback(async()=>{
+    ultimaCarga.current=Date.now()
+    const{data,error}=await sb.schema('costos').from('precio_articulo')
       .select('articulo_id,temporada_id,temporada,codigo,descripcion,costo,precio_venta,es_a_mano,precio_criterio,es_criterio_a_mano,precio_greguera,precio_balbi,precio_sucati')
-      .then(({data,error})=>{
-        if(!vigente)return
-        if(!error&&data?.length){
-          setIndice(data.map(x=>({...x,id:x.articulo_id})).sort(porCodigo))
-          return
-        }
-        sb.schema('costos').from('articulos').select('id,temporada_id,codigo,descripcion')
-          .then(({data:d2})=>{ if(vigente)setIndice((d2||[]).sort(porCodigo)) })
-      })
-    return()=>{vigente=false}
+    if(!montado.current)return
+    if(!error&&data?.length){
+      setIndice(data.map(x=>({...x,id:x.articulo_id})).sort(porCodigo))
+      return
+    }
+    const{data:d2}=await sb.schema('costos').from('articulos').select('id,temporada_id,codigo,descripcion')
+    if(montado.current)setIndice((d2||[]).sort(porCodigo))
   },[])
+
+  useEffect(()=>{cargarIndice()},[cargarIndice])
+
+  // Antes esto se pedía UNA sola vez, al abrir la app: un precio que se tocaba
+  // después, o un artículo recién creado, no se veían nunca en el buscador
+  // hasta recargar la página entera. Ahora se vuelve a pedir cada vez que el
+  // buscador se usa. El segundo de guarda es solo para que un mismo clic no
+  // dispare la consulta dos veces.
+  const refrescarIndice=useCallback(()=>{
+    if(Date.now()-ultimaCarga.current>1000)cargarIndice()
+  },[cargarIndice])
 
   async function elegirTemporada(t){
     setTemporada(t)
@@ -205,7 +217,7 @@ function Pantallas(){
           {mTemp&&<ModalNuevaTemp sugerido={estacion==='invierno'?'Invierno ':'Verano '} temporadas={temporadas} estacion={estacion} onClose={()=>setMTemp(false)} onSave={crearTemporada}/>}
         </div>
       </nav>
-      {temporada&&<BuscadorFijo indice={indice} temporadaId={temporada.id} onElegir={a=>{setTab('articulos');setPedido(a)}}/>}
+      {temporada&&<BuscadorFijo indice={indice} temporadaId={temporada.id} onUsar={refrescarIndice} onElegir={a=>{setTab('articulos');setPedido(a)}}/>}
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
         :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas} pedido={pedido} onPedidoListo={()=>setPedido(null)} onTemporadaCambio={refrescarTemporadas}/>
         :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>

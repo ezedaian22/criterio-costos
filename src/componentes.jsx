@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio } from './lib/nucleo.js'
 import { avisar } from './lib/dialogos.jsx'
 
-export function BuscadorFijo({indice,temporadaId,onElegir}){
+export function BuscadorFijo({indice,temporadaId,onElegir,onUsar}){
   const[q,setQ]=useState('')
   const[abierto,setAbierto]=useState(false)
   const caja=React.useRef(null)
@@ -34,7 +34,9 @@ export function BuscadorFijo({indice,temporadaId,onElegir}){
           placeholder="🔎 Ir a un artículo — código o descripción"
           value={q}
           onChange={e=>{setQ(e.target.value);setAbierto(true)}}
-          onFocus={()=>setAbierto(true)}
+          // Al entrar al campo se vuelven a pedir los precios: si se tocó algo
+          // desde que se abrió la app, acá se pone al día.
+          onFocus={()=>{setAbierto(true);onUsar&&onUsar()}}
           onKeyDown={e=>{
             if(e.key==='Escape'){setQ('');setAbierto(false);e.target.blur()}
             if(e.key==='Enter'&&res.length)elegir(res[0])
