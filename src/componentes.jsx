@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio } from './lib/nucleo.js'
+import { sb, fmt, guardar, getPrecios, perchaPorDefecto, getTemporadas, precioCriterio, detectarEstacion } from './lib/nucleo.js'
 import { avisar } from './lib/dialogos.jsx'
 
 export function BuscadorFijo({indice,temporadaId,onElegir,onUsar}){

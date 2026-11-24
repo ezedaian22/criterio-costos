@@ -4,7 +4,7 @@ import { ModalNuevoArt } from '../componentes.jsx'
 import { ArticuloDetalle } from './ArticuloDetalle.jsx'
 import { avisar } from '../lib/dialogos.jsx'
 
-export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoListo}){
+export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoListo,onTemporadaCambio}){
   const[articulos,setArticulos]=useState([])
   const[loading,setLoading]=useState(true)
   const[busqueda,setBusqueda]=useState('')
