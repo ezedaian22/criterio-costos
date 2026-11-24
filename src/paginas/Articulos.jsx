@@ -117,6 +117,27 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
   const incompletos=articulos.filter(a=>esIncompleto(a).incompleto)
   const filtrados=articulos.filter(a=>!busqueda||a.codigo.toLowerCase().includes(busqueda.toLowerCase())||(a.descripcion||'').toLowerCase().includes(busqueda.toLowerCase()))
 
+  // Cuánto falta recotizar en toda la temporada, en un solo renglón. Las telas,
+  // los avíos y las perchas se cuentan en la base; la confección sale de los
+  // artículos que ya están cargados acá y el corte, de la configuración.
+  const[faltantes,setFaltantes]=useState(null)
+  useEffect(()=>{
+    let vigente=true
+    const pendientes=t=>sb.schema('costos').from(t)
+      .select('id',{count:'exact',head:true}).eq('temporada_id',temporada.id).eq('actualizado',false)
+    Promise.all([pendientes('precios_tela'),pendientes('precios_avios'),pendientes('precios_perchas')])
+      .then(([tl,av,pe])=>{
+        if(!vigente)return
+        const confecciones=articulos.filter(a=>a.confeccion_actualizada===false).length
+        const corte=config?.corte_actualizado===false?1:0
+        const telas=tl.count||0,avios=av.count||0,perchas=pe.count||0
+        setFaltantes({telas,avios,perchas,confecciones,corte,
+          total:telas+avios+perchas+confecciones+corte})
+      })
+      .catch(()=>{})
+    return()=>{vigente=false}
+  },[temporada.id,articulos,config])
+
   // Vive en la base (temporadas.ultimo_codigo): es el mismo para todos los
   // equipos. Antes estaba en el navegador y cada máquina veía un número distinto.
   const ultimoNumerico=temporada.ultimo_codigo??null
@@ -249,6 +270,23 @@ export function ArticulosPage({temporada,config,todasTemporadas,pedido,onPedidoL
           }
         </div>
       </div>
+
+      {!loading&&faltantes&&faltantes.total>0&&(
+        <div style={{marginBottom:16,padding:'10px 14px',border:'1.5px solid var(--azul)',borderRadius:10,
+          background:'var(--azul-bg)',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <span style={{fontSize:16}}>🧾</span>
+          <span style={{fontWeight:700,fontSize:14,color:'var(--azul)'}}>Falta recotizar en {temporada.nombre}</span>
+          <span style={{fontSize:13,color:'var(--text2)'}}>
+            {[
+              faltantes.telas&&`${faltantes.telas} tela${faltantes.telas!==1?'s':''}`,
+              faltantes.avios&&`${faltantes.avios} avío${faltantes.avios!==1?'s':''}`,
+              faltantes.perchas&&`${faltantes.perchas} percha${faltantes.perchas!==1?'s':''}`,
+              faltantes.confecciones&&`${faltantes.confecciones} ${faltantes.confecciones===1?'confección':'confecciones'}`,
+              faltantes.corte&&'el corte',
+            ].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+      )}
 
       {!loading&&incompletos.length>0&&(
         <div style={{marginBottom:16,border:'1.5px solid #fbbf24',borderRadius:10,overflow:'hidden'}}>

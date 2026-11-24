@@ -6,6 +6,15 @@ import { avisar, confirmar } from '../lib/dialogos.jsx'
 export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTemporadaCambio}){
   const[form,setForm]=useState({precio_corte:config?.precio_corte||400,margen_greguera:config?.margen_greguera||100,margen_balbi:config?.margen_balbi||50,descuento_sucati:config?.descuento_sucati||15,descuento_criterio:config?.descuento_criterio??20,margen_propio:config?.margen_propio??config?.margen_greguera??100})
   const[ultimoCod,setUltimoCod]=useState(temporada.ultimo_codigo!=null?String(temporada.ultimo_codigo):'')
+  // El corte es un solo número por temporada, así que su tilde vive en config.
+  const cortePendiente=config?.corte_actualizado===false
+
+  async function marcarCorteOk(){
+    if(!config)return
+    const{data,error}=await sb.schema('costos').from('config').update({corte_actualizado:true}).eq('id',config.id).select().single()
+    if(error){await avisar('No se pudo marcar el corte como revisado.\n\n'+error.message);return}
+    onSave(data)
+  }
   const[guardando,setGuardando]=useState(false)
   const[ok,setOk]=useState(false)
   const[mTemp,setMTemp]=useState(false)
@@ -55,8 +64,12 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
     if(!await guardar(sb.schema('costos').from('temporadas').update({ultimo_codigo:isNaN(n)?null:n}).eq('id',temporada.id),'el último código')){
       setGuardando(false);return
     }
+    // El corte se da por revisado cuando se le cambia el valor, no cada vez que
+    // se guarda la configuración: tocar un margen no dice nada del corte.
+    const corteCambio=config&&Number(form.precio_corte)!==Number(config.precio_corte)
+    const aGuardar=corteCambio?{...form,corte_actualizado:true}:form
     if(config){
-      const{data,error}=await sb.schema('costos').from('config').update(form).eq('id',config.id).select().single()
+      const{data,error}=await sb.schema('costos').from('config').update(aGuardar).eq('id',config.id).select().single()
       if(error){setGuardando(false);await avisar('No se pudo guardar la configuración.\n\n'+error.message);return}
       onSave(data)
     }else{
@@ -134,7 +147,27 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
             </div>
           </div>
           <div className="sep"/>
-          <div className="form-group"><label className="form-label">Precio de corte ($)</label><input type="number" className="form-input" value={form.precio_corte} onChange={e=>set('precio_corte',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Se aplica a todos los artículos</div></div>
+          <div className="form-group">
+            <label className="form-label" style={{display:'flex',alignItems:'center',gap:6}}>
+              {cortePendiente
+                ? <span style={{color:'#d97706',fontSize:12}}>⏳</span>
+                : <span style={{color:'#16a34a',fontSize:13}}>✓</span>}
+              Precio de corte ($)
+            </label>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <input type="number" className="form-input" value={form.precio_corte} onChange={e=>set('precio_corte',Number(e.target.value))}/>
+              {cortePendiente&&(
+                <button onClick={marcarCorteOk} title="Marcar como revisado sin cambiar el precio"
+                  style={{background:'#dcfce7',color:'#16a34a',border:'none',borderRadius:6,padding:'8px 10px',
+                    fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>✓ OK</button>
+              )}
+            </div>
+            <div style={{fontSize:11,color:cortePendiente?'#a16207':'var(--text3)',marginTop:3}}>
+              {cortePendiente
+                ? 'Viene de la temporada anterior — falta recotizarlo. Se tilda solo al cambiarlo.'
+                : 'Se aplica a todos los artículos'}
+            </div>
+          </div>
           <div className="sep"/>
           <div className="form-group"><label className="form-label">Margen Precio Venta (%)</label><input type="number" className="form-input" value={form.margen_propio} onChange={e=>set('margen_propio',Number(e.target.value))}/><div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Tu precio de referencia. Se redondea a múltiplos de $500</div></div>
           <div className="form-group"><label className="form-label">Margen G. Reguera (%)</label><input type="number" className="form-input" value={form.margen_greguera} onChange={e=>set('margen_greguera',Number(e.target.value))}/></div>

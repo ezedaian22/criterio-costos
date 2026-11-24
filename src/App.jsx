@@ -5,6 +5,7 @@ import { Dialogos } from './lib/dialogos.jsx'
 import { ArticulosPage } from './paginas/Articulos.jsx'
 import { ListaPreciosPage } from './paginas/ListaPrecios.jsx'
 import { PreciosPage } from './paginas/Precios.jsx'
+import { ConfeccionPage } from './paginas/Confeccion.jsx'
 import { ComparadorPage } from './paginas/Comparador.jsx'
 import { ConfigPage } from './paginas/Config.jsx'
 
@@ -187,8 +188,8 @@ function Pantallas(){
     )
   }
 
-  const tabs=['articulos','lista','telas','avios','perchas','comparar','config']
-  const tabLabel={articulos:'📦 Artículos',lista:'🏷️ Lista',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',comparar:'📊 Comparar',config:'⚙️ Config'}
+  const tabs=['articulos','lista','telas','avios','perchas','confeccion','comparar','config']
+  const tabLabel={articulos:'📦 Artículos',lista:'🏷️ Lista',telas:'🧵 Telas',avios:'🪡 Avíos',perchas:'🧲 Perchas',confeccion:'✂️ Confección',comparar:'📊 Comparar',config:'⚙️ Config'}
 
   return(
     <div>
@@ -224,6 +225,7 @@ function Pantallas(){
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
         :tab==='perchas'?<PreciosPage tipo="precios_perchas" titulo="Precios de Perchas" icono="🧲" temporada={temporada}/>
+        :tab==='confeccion'?<ConfeccionPage temporada={temporada}/>
         :tab==='comparar'?<ComparadorPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
         :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}} onTemporadaCambio={refrescarTemporadas}/>
       }

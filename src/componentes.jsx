@@ -352,7 +352,9 @@ export function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
         await sb.schema('costos').from('config').insert({
           temporada_id:nueva.id,precio_corte:c.precio_corte,margen_greguera:c.margen_greguera,
           margen_balbi:c.margen_balbi,descuento_sucati:c.descuento_sucati,margen_propio:c.margen_propio,
-          descuento_criterio:c.descuento_criterio
+          descuento_criterio:c.descuento_criterio,
+          // Arranca sin tildar: el corte viene del año pasado y hay que recotizarlo
+          corte_actualizado:false
         })
       }
 
@@ -391,7 +393,10 @@ export function ModalNuevaTemp({onClose,onSave,sugerido,temporadas,estacion}){
           arts.map(a=>({
             temporada_id:nueva.id,codigo:a.codigo,descripcion:a.descripcion,confeccion:a.confeccion,
             categoria:a.categoria,notas_taller:a.notas_taller,foto_url:a.foto_url,
-            precio_venta_manual:a.precio_venta_manual,precio_criterio_manual:a.precio_criterio_manual
+            precio_venta_manual:a.precio_venta_manual,precio_criterio_manual:a.precio_criterio_manual,
+            // La confección se copia tal cual pero sin tildar: es el precio que
+            // se pagó el año pasado y hay que recotizarlo artículo por artículo.
+            confeccion_actualizada:false
           }))
         ).select()
         const mapArt={}

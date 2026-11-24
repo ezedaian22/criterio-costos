@@ -32,15 +32,26 @@ export function ListaPreciosPage({temporada,config}){
   async function exportarSheets(){
     try{
       // Verificar precios pendientes
-      const[{data:tp},{data:ap}]=await Promise.all([
-        sb.schema('costos').from('precios_tela').select('id').eq('temporada_id',temporada.id).eq('actualizado',false),
-        sb.schema('costos').from('precios_avios').select('id').eq('temporada_id',temporada.id).eq('actualizado',false),
+      // Esta lista es la que se le pasa al cliente, así que mira TODO lo que
+      // puede estar sin recotizar: antes solo avisaba por telas y avíos, y se
+      // podía exportar con las perchas y las confecciones del año pasado.
+      const sinTildar=t=>sb.schema('costos').from(t).select('id').eq('temporada_id',temporada.id).eq('actualizado',false)
+      const[{data:tp},{data:ap},{data:pp},{data:cf}]=await Promise.all([
+        sinTildar('precios_tela'),
+        sinTildar('precios_avios'),
+        sinTildar('precios_perchas'),
+        sb.schema('costos').from('articulos').select('id').eq('temporada_id',temporada.id).eq('confeccion_actualizada',false),
       ])
       const pendTelas=(tp||[]).length, pendAvios=(ap||[]).length
-      if(pendTelas+pendAvios>0){
+      const pendPerchas=(pp||[]).length, pendConf=(cf||[]).length
+      const pendCorte=config?.corte_actualizado===false
+      if(pendTelas+pendAvios+pendPerchas+pendConf>0||pendCorte){
         const msg=`⚠️ Hay precios sin actualizar en esta temporada:\n\n`+
           (pendTelas?`• ${pendTelas} tela${pendTelas!==1?'s':''}\n`:'')+
           (pendAvios?`• ${pendAvios} avío${pendAvios!==1?'s':''}\n`:'')+
+          (pendPerchas?`• ${pendPerchas} percha${pendPerchas!==1?'s':''}\n`:'')+
+          (pendConf?`• ${pendConf} ${pendConf===1?'confección':'confecciones'}\n`:'')+
+          (pendCorte?`• el precio de corte\n`:'')+
           `\nLos costos pueden estar desactualizados. ¿Exportar igual?`
         if(!await confirmar(msg))return
       }

@@ -129,7 +129,10 @@ export function ArticuloDetalle({art,temporada,config,onBack}){
   }
   async function guardarConf(){
     const v=Number(confInput)||0
-    if(!await guardar(sb.schema('costos').from('articulos').update({confeccion:v}).eq('id',art.id),'la confección'))return
+    // Tocar la confección acá cuenta igual que tocarla en la pantalla de
+    // Confección: queda revisada. Si no, el tilde diría que falta algo que ya
+    // se hizo, y la lista de pendientes dejaría de ser confiable.
+    if(!await guardar(sb.schema('costos').from('articulos').update({confeccion:v,confeccion_actualizada:true}).eq('id',art.id),'la confección'))return
     setConf(v);setEditConf(false)
   }
   async function guardarCodigo(){
