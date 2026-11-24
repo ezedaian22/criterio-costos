@@ -107,10 +107,15 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
       ?`¿Cerrar "${temporada.nombre}"?\n\nNo se van a poder editar precios ni artículos hasta que la reabras.`
       :`¿Reabrir "${temporada.nombre}" para edición?`
     if(!await confirmar(msg))return
-    await sb.schema('costos').from('temporadas').update({cerrada:nueva}).eq('id',temporada.id)
+    if(!await guardar(sb.schema('costos').from('temporadas').update({cerrada:nueva}).eq('id',temporada.id),
+      nueva?'el cierre de la temporada':'la reapertura de la temporada'))return
     setCerrada(nueva)
-    const ts=await getTemporadas()
-    onTemporadas(ts)
+    // Refresca la lista Y la temporada en la que se está parado. Antes solo la
+    // lista: Telas, Avíos y Confección miran la temporada actual para saber si
+    // mostrar los lápices, y seguían dejando editar una temporada ya cerrada
+    // (la base lo rechazaba igual, pero con un error en vez de no ofrecerlo).
+    if(onTemporadaCambio)await onTemporadaCambio()
+    else onTemporadas(await getTemporadas())
     await avisar(nueva?'🔒 Temporada cerrada':'🔓 Temporada reabierta')
   }
 
@@ -139,6 +144,12 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,alignItems:'start'}}>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Parámetros globales</div>
+          {/* Con la temporada cerrada todo esto queda bloqueado. El corte y los
+              márgenes no son un dato más: de ellos salen TODOS los precios de la
+              temporada, así que cambiarlos reescribía el registro histórico
+              aunque la temporada dijera "cerrada". El fieldset deshabilita de una
+              todos los campos y botones que tiene adentro. */}
+          <fieldset disabled={cerrada} style={{border:0,padding:0,margin:0,minWidth:0}}>
           <div className="form-group">
             <label className="form-label">Último código usado</label>
             <input type="number" className="form-input" value={ultimoCod} onChange={e=>setUltimoCod(e.target.value)} placeholder="Ej: 2314"/>
@@ -180,7 +191,8 @@ export function ConfigPage({temporada,config,onSave,temporadas,onTemporadas,onTe
               Se descuenta del Precio Venta, no del costo. Se redondea al múltiplo de $500 más cercano
             </div>
           </div>
-          <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardarConfig} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':'Guardar configuración'}</button>
+          <button className="btn btn-primary" style={{width:'100%',minHeight:44}} onClick={guardarConfig} disabled={guardando}>{ok?'✅ Guardado':guardando?'Guardando...':cerrada?'🔒 Temporada cerrada':'Guardar configuración'}</button>
+          </fieldset>
         </div>
         <div className="card" style={{padding:20}}>
           <div style={{fontWeight:700,marginBottom:16}}>Vista previa (costo $10.000)</div>

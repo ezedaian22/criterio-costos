@@ -111,8 +111,13 @@ function Pantallas(){
   },[cargarIndice])
 
   async function elegirTemporada(t){
+    // La configuración se trae ANTES de cambiar la temporada, y las dos se
+    // cambian juntas. Antes se cambiaba la temporada primero y la config
+    // llegaba después: por un instante la pantalla tenía la temporada nueva
+    // con los márgenes y el corte de la vieja.
+    const c=await getConfig(t.id)
     setTemporada(t)
-    setConfig(await getConfig(t.id))
+    setConfig(c)
     setPantalla('app')
     setMCambiar(false)
     setMTemp(false)
@@ -219,8 +224,13 @@ function Pantallas(){
         </div>
       </nav>
       {temporada&&<BuscadorFijo indice={indice} temporadaId={temporada.id} onUsar={refrescarIndice} onElegir={a=>{setTab('articulos');setPedido(a)}}/>}
+      {/* key: al cambiar de temporada la pantalla se arma de nuevo. Config, por
+          ejemplo, copia los valores a su formulario al abrirse; sin esto se
+          quedaba con los de la temporada anterior —el corte, los márgenes, el
+          último código y si estaba cerrada— y "Guardar" los escribía en la nueva. */}
       {!temporada?<div className="empty"><div className="empty-title">Sin temporadas</div></div>
-        :tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas} pedido={pedido} onPedidoListo={()=>setPedido(null)} onTemporadaCambio={refrescarTemporadas}/>
+        :<React.Fragment key={temporada.id}>{
+        tab==='articulos'?<ArticulosPage temporada={temporada} config={config} todasTemporadas={temporadas} pedido={pedido} onPedidoListo={()=>setPedido(null)} onTemporadaCambio={refrescarTemporadas}/>
         :tab==='lista'?<ListaPreciosPage temporada={temporada} config={config}/>
         :tab==='telas'?<PreciosPage tipo="precios_tela" titulo="Precios de Telas" icono="🧵" temporada={temporada}/>
         :tab==='avios'?<PreciosPage tipo="precios_avios" titulo="Precios de Avíos" icono="🪡" temporada={temporada}/>
@@ -228,7 +238,7 @@ function Pantallas(){
         :tab==='confeccion'?<ConfeccionPage temporada={temporada}/>
         :tab==='comparar'?<ComparadorPage temporada={temporada} config={config} todasTemporadas={temporadas}/>
         :<ConfigPage temporada={temporada} config={config} onSave={setConfig} temporadas={temporadas} onTemporadas={ts=>{setTemporadas(ts)}} onTemporadaCambio={refrescarTemporadas}/>
-      }
+      }</React.Fragment>}
     </div>
   )
 }
